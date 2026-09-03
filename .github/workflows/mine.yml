@@ -1,0 +1,37 @@
+name: Mineração — Radar do Garimpo
+
+on:
+  schedule:
+    # 09:00 e 18:00 no horário de Brasília (UTC-3) = 12:00 e 21:00 UTC.
+    # Frequência escolhida como meio-termo: cobre manhã e fim de tarde sem
+    # sobrecarregar a Biblioteca de Anúncios pública com requisições demais
+    # por dia (ver README, seção "Pipeline de mineração").
+    - cron: "0 12 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch: {} # permite disparar manualmente pela aba Actions do GitHub
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar mineração
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          SCRAPER_API_SECRET: ${{ secrets.SCRAPER_API_SECRET }}
+        run: npm run mine

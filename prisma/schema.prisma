@@ -1,0 +1,66 @@
+// Schema do Radar do Garimpo.
+// Provider: Postgres (pensado para Neon/Supabase/Railway em produção e local).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Uma linha por oferta rastreada na Biblioteca de Anúncios da Meta.
+model Offer {
+  id         String  @id
+  niche      String
+  produto    String
+  anunciante String
+  ticket     String?
+
+  // Sempre "sales_page" — nunca "whatsapp" (regra de negócio, ver README).
+  destino String @default("sales_page")
+
+  vendaUrl  String
+  libraryId String @unique
+  pageId    String
+
+  collation Int?
+
+  concorrencia   Int?
+  concorrenciaEm DateTime?
+
+  // "Alta" | "Media" | "Baixa"
+  internacional String
+
+  riscoPolitica Boolean @default(false)
+
+  primeiraDeteccao DateTime
+  descoberta       Boolean  @default(true)
+
+  // Array de { d: "AAAA-MM-DD", c: number }, mantendo só os últimos 45 pontos.
+  history Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([niche])
+  @@map("offers")
+}
+
+// Documento único (singleton) com o resumo da última rodada de mineração.
+model MetaStatus {
+  id            String   @id @default("singleton")
+  lastRun       DateTime @default(now())
+  lastRunNota   String   @default("")
+  offersTracked Int      @default(0)
+  novasHoje     Int      @default(0)
+  podadasHoje   Int      @default(0)
+
+  // Array de ids de ofertas que escalaram forte na rodada.
+  escalations Json @default("[]")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("meta_status")
+}
