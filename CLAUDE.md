@@ -58,6 +58,17 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 
 ## Regras de negócio (definidas pelo Cayan — não afrouxe sem perguntar)
 
+- **Só três nichos** (definido em 04/09/2026, substituiu a lista antiga de
+  nichos bons):
+  1. **Saúde e bem-estar**, amplo — emagrecimento, treino, enfermagem, saúde
+     mental, terapias holísticas. Estética/beleza **não** conta como saúde.
+  2. **Religião**.
+  3. **Renda extra**, e isso **inclui artesanato e ofício**: crochê, costura,
+     papelaria de festa, confeitaria, elétrica, beleza — quem aprende pra
+     produzir e vender — além de vender online.
+
+  Fora do escopo: educação/pedagogia, idiomas, maternidade/gestação,
+  casamento, finanças pessoais, agro.
 - **Nunca WhatsApp** como destino. Só página de venda de verdade.
 - Ticket entre **R$9 e R$50**.
 - **Nada de concurso público** (mercado grande, dominado por players grandes) —
@@ -65,8 +76,9 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 - Nada de expert famoso ou marca grande: só oferta que **vende por si só**.
 - Fora também: formulário de lead, quiz de captação, blog, loja física, site em
   espanhol, página de busca.
-- Nichos que ele considera **bons**: memorização, enfermeiros, pedagogos,
-  crochê/costura, papelaria digital, maternidade, artesanato.
+- Sem keyword genérica de formato ("PDF por apenas", "e-book por apenas"):
+  rende bem, mas traz qualquer nicho — foi o que enchia o painel de oferta
+  fora do escopo.
 
 ## Como trabalhar com o Cayan
 
@@ -83,7 +95,10 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
   com o refresh do PATH da máquina/usuário.
 - **A busca de anúncios usa frase exata** (`q="keyword"`). Keyword longa e
   específica volta **zero** resultado — foi isso que fez 24 das 40 keywords de
-  uma rodada virarem busca vazia. Keyword boa é curta e comum.
+  uma rodada virarem busca vazia. Keyword boa é curta e comum: "planner
+  financeiro editável" dá 0, "planner financeiro" dá 30. **Meça toda keyword
+  nova** com `npx tsx scraper/auditarKeywords.ts lista.txt saida.json` antes de
+  incluir; abaixo de ~10 anúncios ela quase não paga o tempo da rodada.
 - **Rotação de keywords é por cursor** (`meta_status.keywordCursor`), não por
   dia do ano. O modelo antigo fazia as duas rodadas do mesmo dia varrerem as
   mesmas keywords e dois dias seguidos repetirem quase tudo.
