@@ -35,6 +35,9 @@ export interface MetaStatus {
   novasHoje: number;
   podadasHoje: number;
   escalations: string[];
+  // Diagnóstico técnico do funil da rodada — não é pra exibir no painel,
+  // só pra debug via GET /api/status.
+  diagnostico: string;
 }
 
 export type FilterKey = "top10" | "todas" | "escalando" | "esfriando" | "novas";

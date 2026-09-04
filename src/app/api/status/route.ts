@@ -17,6 +17,7 @@ export async function GET() {
       novasHoje: 0,
       podadasHoje: 0,
       escalations: [],
+      diagnostico: "",
     });
   }
 

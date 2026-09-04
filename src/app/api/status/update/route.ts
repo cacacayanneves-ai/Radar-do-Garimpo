@@ -12,6 +12,7 @@ interface StatusPayload {
   novasHoje: number;
   podadasHoje: number;
   escalations?: string[];
+  diagnostico?: string;
 }
 
 // Uso interno do job de mineração — grava o resumo da rodada.
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     novasHoje: body.novasHoje ?? 0,
     podadasHoje: body.podadasHoje ?? 0,
     escalations: (body.escalations ?? []) as unknown as Prisma.InputJsonValue,
+    diagnostico: body.diagnostico ?? "",
   };
 
   const status = await prisma.metaStatus.upsert({

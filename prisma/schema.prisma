@@ -60,6 +60,12 @@ model MetaStatus {
   // Array de ids de ofertas que escalaram forte na rodada.
   escalations Json @default("[]")
 
+  // Diagnóstico técnico do funil de mineração (candidatos avaliados, motivo
+  // de cada rejeição, sinais de bloqueio) — não aparece no painel público,
+  // só via GET /api/status, pra debugar uma rodada sem depender do log do
+  // GitHub Actions (que exige login pra ver).
+  diagnostico String @default("")
+
   updatedAt DateTime @updatedAt
 
   @@map("meta_status")

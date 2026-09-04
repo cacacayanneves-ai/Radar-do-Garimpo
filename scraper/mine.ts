@@ -509,11 +509,12 @@ async function main() {
     console.log("\nFunil da rodada:", JSON.stringify(funnel), JSON.stringify(client.getBlockStats()));
 
     await updateStatus({
-      lastRunNota: `${headline} — ${diagnostico}`,
+      lastRunNota: headline, // texto público, aparece no rodapé do painel.
       offersTracked,
       novasHoje: newOffers.length,
       podadasHoje: toDelete.length,
       escalations: report.escalations.map((e) => e.id),
+      diagnostico, // só pra debug via GET /api/status, não aparece no painel.
     });
 
     printReport(report, offersTracked);

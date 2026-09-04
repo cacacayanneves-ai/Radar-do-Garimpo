@@ -1,15 +1,15 @@
 import type { FilterKey } from "@/lib/types";
 
 const TABS: { key: FilterKey; label: string; title?: string }[] = [
+  { key: "todas", label: "Todas" },
+  { key: "escalando", label: "Escalando" },
+  { key: "esfriando", label: "Esfriando" },
+  { key: "novas", label: "Novas" },
   {
     key: "top10",
     label: "🏆 Top 10",
     title: "As 10 melhores: muitos criativos rodando + pouca concorrência, com bônus pra quem está escalando agora",
   },
-  { key: "todas", label: "Todas" },
-  { key: "escalando", label: "Escalando" },
-  { key: "esfriando", label: "Esfriando" },
-  { key: "novas", label: "Novas" },
 ];
 
 export default function FilterTabs({

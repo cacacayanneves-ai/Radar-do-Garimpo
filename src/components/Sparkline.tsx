@@ -6,8 +6,19 @@ const WIDTH = 72;
 const HEIGHT = 26;
 const PAD = 3;
 
+// Cor por tendência: verde escalando, terracota esfriando, âmbar neutro/sem
+// dado suficiente — mesma paleta do badge de Δ, só que no gráfico inteiro,
+// pra dar pra ver de relance sem precisar ler o número.
+function trendColor(delta: number | null): { line: string; glow: string } {
+  if (delta !== null && delta > 0) return { line: "var(--moss)", glow: "var(--moss-bg)" };
+  if (delta !== null && delta < 0) return { line: "var(--clay)", glow: "var(--clay-bg)" };
+  return { line: "var(--brass)", glow: "var(--glow-brass)" };
+}
+
 export default function Sparkline({ history }: { history: HistoryPoint[] }) {
   const points = (history || []).slice(-14);
+  const delta = points.length >= 2 ? points[points.length - 1].c - points[points.length - 2].c : null;
+  const { line, glow } = trendColor(delta);
 
   if (points.length === 0) {
     return <svg width={WIDTH} height={HEIGHT} aria-hidden="true" />;
@@ -16,7 +27,7 @@ export default function Sparkline({ history }: { history: HistoryPoint[] }) {
   if (points.length === 1) {
     return (
       <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true">
-        <circle cx={WIDTH / 2} cy={HEIGHT / 2} r={3} fill="var(--brass)" />
+        <circle cx={WIDTH / 2} cy={HEIGHT / 2} r={3} fill={line} />
       </svg>
     );
   }
@@ -40,9 +51,9 @@ export default function Sparkline({ history }: { history: HistoryPoint[] }) {
 
   return (
     <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true">
-      <path d={areaPath} fill="var(--glow-brass)" stroke="none" />
-      <path d={linePath} fill="none" stroke="var(--brass)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r={2.4} fill="var(--brass)" />
+      <path d={areaPath} fill={glow} stroke="none" />
+      <path d={linePath} fill="none" stroke={line} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r={2.4} fill={line} />
     </svg>
   );
 }

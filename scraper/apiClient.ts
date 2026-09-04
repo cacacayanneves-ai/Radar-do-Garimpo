@@ -65,6 +65,7 @@ export async function updateStatus(status: {
   novasHoje: number;
   podadasHoje: number;
   escalations: string[];
+  diagnostico?: string;
 }) {
   const res = await fetch(`${SITE_URL}/api/status/update`, {
     method: "POST",
