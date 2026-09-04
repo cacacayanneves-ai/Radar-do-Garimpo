@@ -160,6 +160,12 @@ interface FunnelStats {
   duplicada: number;
   landingRuim: number;
   aceitas: number;
+  // Busca por keyword que voltou 0 anúncios, dividida em 3 terços da rodada.
+  // Todas as keywords da lista são medidas e passam de 20 anúncios fora do
+  // GitHub Actions — se o terço final tiver muito mais vazias que o
+  // primeiro, é sinal de bloqueio/limitação progressiva do Facebook contra o
+  // IP do runner (não é problema de keyword).
+  buscaVaziaPorTerco: [number, number, number];
 }
 
 function novoFunnel(): FunnelStats {
@@ -167,6 +173,7 @@ function novoFunnel(): FunnelStats {
     nichosPulados: 0, candidatos: 0, semLink: 0, poucosCriativos: 0, whatsapp: 0,
     linkMeta: 0, instagram: 0, semPageInfo: 0, naoDigital: 0, ticketFora: 0,
     semSinalDigital: 0, duplicada: 0, landingRuim: 0, aceitas: 0,
+    buscaVaziaPorTerco: [0, 0, 0],
   };
 }
 
@@ -184,7 +191,10 @@ function resumirFunnel(f: FunnelStats, block: { captcha: number; emptyPayload: n
   ];
   for (const [label, n] of rejeicoes) if (n > 0) partes.push(`${n} ${label}`);
   if (block.captcha > 0) partes.push(`⚠️ ${block.captcha} captcha`);
-  if (block.emptyPayload > 0) partes.push(`⚠️ ${block.emptyPayload} busca vazia`);
+  if (block.emptyPayload > 0) {
+    const [t1, t2, t3] = f.buscaVaziaPorTerco;
+    partes.push(`⚠️ ${block.emptyPayload} busca vazia (${t1}/${t2}/${t3} por terço da rodada)`);
+  }
   if (block.navFailures > 0) partes.push(`⚠️ ${block.navFailures} falhas de navegação`);
   return partes.join(", ");
 }
@@ -328,9 +338,10 @@ async function mineNewOffers(
   // descartados lá embaixo.
   const textosVistos = new Set<string>();
 
-  for (const keyword of keywords) {
+  for (const [indice, keyword] of keywords.entries()) {
     if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
     consumidas++;
+    const terco = indice < keywords.length / 3 ? 0 : indice < (2 * keywords.length) / 3 ? 1 : 2;
 
     // Mede a concorrência do nicho ANTES de gastar tempo avaliando
     // candidatos — nicho saturado (mercado grande/dominado por players
@@ -348,6 +359,7 @@ async function mineNewOffers(
 
     const candidates = await client.searchAds(keyword, 20);
     await randomDelay(1200, 2200);
+    if (candidates.length === 0) funnel.buscaVaziaPorTerco[terco]++;
 
     for (const candidate of candidates) {
       if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
