@@ -124,6 +124,21 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 - **Contagem de criativos** tem que ser da *oferta*, não do anunciante:
   `countOfferCreatives(pageId, creativeText)` filtra pelo texto do criativo. Já
   quebrou uma vez mostrando "+108 escalando" quando eram 2.
+- **Nunca decida com o `collationHint` da busca.** Ele só conta cópias do mesmo
+  texto dentro dos ~20 resultados carregados, então subestima muito: medido em
+  04/09/2026, ofertas com 5, 6 e 71 criativos reais apareciam como 1. Usado
+  como filtro de entrada, barrava 74% dos candidatos e duas rodadas seguidas
+  fecharam com ZERO ofertas novas. O filtro de criativos usa
+  `countOfferCreatives` e fica DEPOIS de todos os testes de graça (link,
+  texto, ticket, dedup), porque custa uma requisição a mais.
+- **Não remova/rejeite nada por causa de UMA leitura ruim.** Falha de leitura
+  ≠ problema real: o Facebook bloqueia o runner de tempos em tempos e site que
+  carrega por JavaScript às vezes devolve só código. Já apagou oferta viva por
+  "anúncio saiu do ar" e por "página degradou". Hoje toda poda passa por
+  `Offer.strikes`: só sai com o MESMO motivo em `PRUNE_STRIKES` (3) rodadas
+  seguidas, e passar em tudo zera. Tem ainda a trava de sanidade: se mais da
+  metade do catálogo der problema na mesma rodada, é falha de ambiente e
+  nenhum strike é aplicado.
 - **Extração de preço**: vale o "por apenas R$ X"; senão, o primeiro preço
   válido ignorando R$ 0,00. Pegar o menor preço da página, ou a moda, já foi
   testado e dá errado. Carregue a página com `networkidle` — com

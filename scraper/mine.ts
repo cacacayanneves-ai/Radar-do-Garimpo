@@ -471,20 +471,6 @@ async function mineNewOffers(
         continue;
       }
 
-      // Duas fontes pro número de criativos, fica com a maior: o que o
-      // Facebook informa na página de detalhe (quando informa) e o que
-      // contamos na própria página de busca. A da busca é a mais confiável
-      // entre ambientes — a página de detalhe nem sempre lista os anúncios
-      // relacionados do mesmo anunciante (foi exatamente isso que fez o
-      // runner do GitHub rejeitar 136 de 139 candidatos por "poucos
-      // criativos" enquanto local aceitava normalmente).
-      const collation = Math.max(details.collation ?? 0, candidate.collationHint ?? 0);
-
-      if (collation < MIN_COLLATION_FOR_NEW_OFFER) {
-        funnel.poucosCriativos++;
-        continue; // poucos criativos rodando — ainda não validado.
-      }
-
       if (isWhatsappLink(details.link)) {
         funnel.whatsapp++;
         continue; // regra de negócio: nunca WhatsApp.
@@ -535,12 +521,34 @@ async function mineNewOffers(
         continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
       }
 
-      // Última checagem, e a mais cara (visita a página de fora do
-      // facebook.com): confirma que a página de venda é mesmo uma página de
-      // venda — não blog, formulário de lead, quiz, loja de produto físico,
-      // página de busca vazia ou site em outro idioma. Fica por último de
-      // propósito, só roda pra quem já passou em tudo o resto. De quebra,
-      // é dela que sai o nome real do produto e o preço praticado.
+      // Número de criativos — o filtro mais importante, e o que decide se a
+      // oferta já está validada pelo anunciante. Fica AQUI, depois de todos
+      // os testes de graça, porque exige uma requisição a mais: pergunta à
+      // Biblioteca quantos anúncios daquela página rodam com esse mesmo
+      // texto.
+      //
+      // Antes o filtro rodava lá em cima com uma ESTIMATIVA (quantas cópias
+      // do mesmo texto apareciam nos 20 resultados da busca) e barrava 74%
+      // dos candidatos. Medido em 04/09/2026: a estimativa subestima sempre,
+      // e feio — ofertas com 5, 6 e até 71 criativos reais apareciam como 1
+      // e eram descartadas. Por isso duas rodadas seguidas terminaram com
+      // zero ofertas novas.
+      const collationExata = await client.countOfferCreatives(details.pageId, details.creativeText);
+      await randomDelay(600, 1200);
+      // Se a medição precisa falhar, cai pra estimativa (que é um piso: nunca
+      // conta a mais) em vez de descartar por não ter conseguido medir.
+      const collationFinal = collationExata ?? Math.max(details.collation ?? 0, candidate.collationHint ?? 0);
+
+      if (collationFinal < MIN_COLLATION_FOR_NEW_OFFER) {
+        funnel.poucosCriativos++;
+        continue; // poucos criativos rodando — ainda não validado.
+      }
+
+      // Última checagem (visita a página de fora do facebook.com): confirma
+      // que a página de venda é mesmo uma página de venda — não blog,
+      // formulário de lead, quiz, loja de produto físico, página de busca
+      // vazia ou site em outro idioma. De quebra, é dela que sai o nome real
+      // do produto e o preço praticado.
       const landing = await client.fetchLandingPage(details.link);
       await randomDelay(600, 1200);
 
@@ -566,14 +574,6 @@ async function mineNewOffers(
       }
 
       const ticketFinal = precoDaPagina != null ? formatPreco(precoDaPagina) : ticket;
-
-      // Só pros finalistas: número exato de anúncios DESTA oferta, pedindo
-      // à Biblioteca a contagem já filtrada pelo texto do criativo. O hint
-      // da página de busca serve de filtro barato lá em cima, mas
-      // subestima — a busca só carrega as primeiras dezenas de cards.
-      const collationExata = await client.countOfferCreatives(details.pageId, details.creativeText);
-      await randomDelay(600, 1200);
-      const collationFinal = collationExata ?? collation;
 
       funnel.aceitas++;
 
