@@ -24,7 +24,7 @@ export default function StatTiles({ offers }: { offers: Offer[] }) {
         <div className="tile-value">{total}</div>
         <div className="tile-label">Ofertas na mira</div>
       </div>
-      <div className="tile">
+      <div className="tile tile-moss">
         <div className="tile-icon">📈</div>
         <div className="tile-value">{escalando}</div>
         <div className="tile-label">Escalando agora</div>
@@ -34,12 +34,12 @@ export default function StatTiles({ offers }: { offers: Offer[] }) {
           <div className="tile-note">{aguardando2aLeitura} aguardando 2ª leitura</div>
         ) : null}
       </div>
-      <div className="tile">
+      <div className="tile tile-teal">
         <div className="tile-icon">✨</div>
         <div className="tile-value">{novas}</div>
         <div className="tile-label">Descobertas na semana</div>
       </div>
-      <div className="tile">
+      <div className="tile tile-clay">
         <div className="tile-icon">🔥</div>
         <div className="tile-value">{maiorEscalada ? `+${maiorEscalada.delta}` : "—"}</div>
         <div className="tile-label">Maior escalada do dia</div>

@@ -258,29 +258,74 @@ body {
 }
 
 .tile {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 18px 18px 16px;
+  padding: 22px 20px 18px;
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Faixa de cor no topo + fundo do ícone — dá contraste entre os 4 tiles em
+   vez de todos terem exatamente a mesma cara. */
+.tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--brass);
+}
+
+.tile-moss::before {
+  background: var(--moss);
+}
+
+.tile-teal::before {
+  background: var(--teal);
+}
+
+.tile-clay::before {
+  background: var(--clay);
 }
 
 .tile-icon {
-  font-size: 20px;
-  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--brass-bg);
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+
+.tile-moss .tile-icon {
+  background: var(--moss-bg);
+}
+
+.tile-teal .tile-icon {
+  background: var(--teal-bg);
+}
+
+.tile-clay .tile-icon {
+  background: var(--clay-bg);
 }
 
 .tile-value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1;
 }
 
 .tile-label {
-  margin-top: 6px;
+  margin-top: 7px;
   font-size: 12.5px;
   color: var(--ink-muted);
 }
@@ -415,7 +460,7 @@ tbody tr:hover {
 }
 
 tbody td {
-  padding: 14px 16px;
+  padding: 18px 16px;
   vertical-align: middle;
   font-size: 13.5px;
 }
@@ -544,6 +589,26 @@ tbody td {
   font-weight: 600;
   color: var(--ink);
   font-size: 14px;
+  line-height: 1.4;
+  /* A copy do anúncio vira o nome do produto até a página de venda dar um
+     nome melhor (ver produtoFromTitle no scraper) — enquanto isso, trunca
+     em ~2 linhas por altura (max-height, não -webkit-line-clamp — mais
+     confiável entre navegadores) pra não estourar a linha da tabela. Passa
+     o texto inteiro no title (tooltip nativo) pra não perder informação. */
+  max-height: 2.8em;
+  overflow: hidden;
+  position: relative;
+}
+
+.offer-produto::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 40%;
+  height: 1.4em;
+  background: linear-gradient(to right, transparent, var(--surface) 70%);
+  pointer-events: none;
 }
 
 .offer-anunciante {

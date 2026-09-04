@@ -69,7 +69,9 @@ export default function OffersTable({
               <tr key={o.id} className={`row-rise ${rowCls}`} style={style}>
                 <td data-label="Oferta">
                   <div className="niche-badge">{o.niche}</div>
-                  <div className="offer-produto">{o.produto}</div>
+                  <div className="offer-produto" title={o.produto}>
+                    {o.produto}
+                  </div>
                   <div className="offer-anunciante">{o.anunciante}</div>
                 </td>
                 <td data-label="Ticket">
