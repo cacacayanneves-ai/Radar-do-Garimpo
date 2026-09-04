@@ -54,10 +54,15 @@ const MAX_HISTORY_POINTS = 45;
 const REVALIDATE_BATCH_SIZE = 12;
 const REVALIDATE_BATCH_PAUSE_MS = 4000;
 const TARGET_NEW_OFFERS = 30;
-// Não existe mais cota fixa de keywords por rodada: a rodada varre a lista a
-// partir do cursor até bater o alvo de ofertas novas, estourar o teto de
-// tempo, ou completar uma volta inteira (o que vier primeiro). Quem manda no
-// tamanho da rodada é o relógio, não um número arbitrário de keywords.
+// Medido ao vivo em 04/09/2026 (ver buscaVaziaPorTerco no diagnóstico): rodada
+// sem teto varreu a lista de 182 keywords inteira numa sessão só, e a taxa de
+// busca vazia disparou de 60% no primeiro terço pra quase 100% no segundo e
+// terceiro — o Facebook passa a bloquear/limitar a sessão depois de umas 60
+// buscas seguidas do mesmo runner do GitHub Actions. Por isso a rodada volta
+// a ter teto de keywords: fica bem abaixo desse ponto de virada, e o cursor
+// garante que o resto da lista é coberto pelas próximas rodadas (agora mais
+// frequentes — ver .github/workflows/mine.yml) em vez de tudo de uma vez.
+const KEYWORDS_PER_ROUND = 30;
 const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
 const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
@@ -92,8 +97,19 @@ function todayIso(): string {
 
 function appendHistory(history: HistoryPoint[], collation: number | null): HistoryPoint[] {
   if (collation == null) return history;
-  const next = [...history, { d: todayIso(), c: collation }];
-  return next.slice(-MAX_HISTORY_POINTS);
+  const hoje = todayIso();
+
+  // No máximo um ponto por dia civil, não um por RODADA. Com o robô rodando
+  // várias vezes ao dia (ver KEYWORDS_PER_ROUND), uma rodada extra no mesmo
+  // dia deve só ATUALIZAR o ponto de hoje com o número mais fresco — se
+  // empilhasse um ponto por rodada, o "escalou de X para Y" e o gráfico de
+  // tendência comparariam horas entre si, não dias, e virariam ruído.
+  if (history.length > 0 && history[history.length - 1].d === hoje) {
+    const semHoje = history.slice(0, -1);
+    return [...semHoje, { d: hoje, c: collation }].slice(-MAX_HISTORY_POINTS);
+  }
+
+  return [...history, { d: hoje, c: collation }].slice(-MAX_HISTORY_POINTS);
 }
 
 function neverEscalated(history: HistoryPoint[]): boolean {
@@ -327,7 +343,7 @@ async function mineNewOffers(
   funnel: FunnelStats,
   cursorInicial: number
 ) {
-  const keywords = keywordsFromCursor(cursorInicial);
+  const keywords = keywordsFromCursor(cursorInicial).slice(0, KEYWORDS_PER_ROUND);
   // Quantas keywords a rodada realmente consumiu — vira o cursor da próxima.
   let consumidas = 0;
   const nicheCompetitionCache = new Map<string, number | null>();

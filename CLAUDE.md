@@ -31,10 +31,12 @@ exija "rodar isso aqui todo dia" está errada por definição.
 | Minerador (Playwright/Chromium) | GitHub Actions, `.github/workflows/` |
 | Deploy | push na `main` → Vercel publica sozinho |
 
-A mineração roda por **cron**: `0 7` e `0 11` UTC = **04h e 08h de Brasília**
-(as duas terminam antes das 10h, quando o Cayan acorda). Também dá pra
-disparar na mão pela aba **Actions → Run workflow** — isso é clique do Cayan,
-não tem `gh` CLI configurado nesta máquina.
+A mineração roda por **cron**, **8 vezes ao dia** (a cada 3h, hora fechada em
+Brasília: 00h/03h/06h/09h/12h/15h/18h/21h) — desde 04/09/2026, quando trocamos
+de 2 rodadas grandes pra várias pequenas (ver armadilha do bloqueio do
+Facebook abaixo). Também dá pra disparar na mão pela aba
+**Actions → Run workflow** — isso é clique do Cayan, não tem `gh` CLI
+configurado nesta máquina.
 
 O minerador **não usa IA e não gasta crédito do Claude**: é código rodando
 Playwright. Nunca proponha "eu minero manualmente" como solução — além de caro,
@@ -104,6 +106,18 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 - **Rotação de keywords é por cursor** (`meta_status.keywordCursor`), não por
   dia do ano. O modelo antigo fazia as duas rodadas do mesmo dia varrerem as
   mesmas keywords e dois dias seguidos repetirem quase tudo.
+- **O Facebook bloqueia/limita a sessão do runner do GitHub Actions depois de
+  ~60 buscas seguidas.** Medido em 04/09/2026: uma rodada sem teto varreu a
+  lista de 182 keywords toda numa sessão só, e a taxa de busca vazia foi de
+  60% no primeiro terço pra quase 100% no segundo e terceiro — mesma lista que
+  rende 20-30 anúncios por keyword quando testada da minha máquina. Não é
+  problema de keyword, é o IP do runner sendo penalizado ao longo da sessão.
+  Por isso `KEYWORDS_PER_ROUND` existe (hoje 30) e a mineração roda 8x ao dia
+  em vez de rodadas longas — **não tire esse teto sem medir de novo**.
+- **O histórico (`history`) guarda no máximo 1 ponto por DIA**, mesmo rodando
+  várias vezes ao dia — `appendHistory` em `mine.ts` atualiza o ponto de hoje
+  em vez de empilhar um por rodada. Sem isso, o gráfico de tendência e o
+  "escalou de X para Y" comparariam horas entre si (ruído), não dias.
 - **Contagem de criativos** tem que ser da *oferta*, não do anunciante:
   `countOfferCreatives(pageId, creativeText)` filtra pelo texto do criativo. Já
   quebrou uma vez mostrando "+108 escalando" quando eram 2.

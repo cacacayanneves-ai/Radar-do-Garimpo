@@ -2,13 +2,30 @@ name: Mineração — Radar do Garimpo
 
 on:
   schedule:
-    # 04:00 e 08:00 no horário de Brasília (UTC-3) = 07:00 e 11:00 UTC.
-    # As duas rodadas terminam antes das 10:00 de Brasília, então ao acordar
-    # o painel já está atualizado com tudo do dia. Cada rodada tem teto de
-    # ~40 min, então a segunda (08:00) sobra folga de mais de 1h.
-    - cron: "0 7 * * *"
-    - cron: "0 11 * * *"
+    # 8 rodadas por dia, a cada 3h, de hora em hora fechada em Brasília
+    # (UTC-3): 00h/03h/06h/09h/12h/15h/18h/21h. Medido em 04/09/2026: uma
+    # rodada sem teto de keywords (varria a lista toda numa sessão só)
+    # começava a ser bloqueada pelo Facebook depois de ~60 buscas seguidas.
+    # A correção foi reduzir cada rodada (ver KEYWORDS_PER_ROUND em
+    # scraper/mine.ts) e rodar mais vezes — o cursor garante que a lista
+    # inteira ainda é coberta ao longo do dia, só que em pedaços que não
+    # esbarram no bloqueio.
+    - cron: "0 3 * * *"
+    - cron: "0 6 * * *"
+    - cron: "0 9 * * *"
+    - cron: "0 12 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 18 * * *"
+    - cron: "0 21 * * *"
+    - cron: "0 0 * * *"
   workflow_dispatch: {} # permite disparar manualmente pela aba Actions do GitHub
+
+# Evita duas rodadas rodando ao mesmo tempo (ex: disparo manual em cima do
+# horário de uma agendada) — a rodada nova espera a anterior terminar em vez
+# de rodar em paralelo e escrever no catálogo ao mesmo tempo.
+concurrency:
+  group: mineracao-radar-do-garimpo
+  cancel-in-progress: false
 
 jobs:
   mine:
