@@ -108,16 +108,53 @@ function nearestNumberField(html: string, anchorIdx: number, key: string): numbe
 
 // A Biblioteca de Anúncios embute o payload de cada card como JSON para
 // hidratação client-side. Não há uma estrutura DOM estável para "o texto do
-// anúncio X" — a aproximação aqui é procurar o primeiro campo "body"/"text"
+// anúncio X" — a aproximação aqui é procurar o campo de texto do criativo
+// (normalmente aninhado como "body":{"text":"..."}, às vezes só "text":"...")
 // depois da ocorrência do id, dentro de uma janela de caracteres. É
 // heurístico por natureza: o Facebook muda esse payload sem aviso, então
 // valide o resultado na prática (spec, seção 6.1) antes de confiar 100% nele.
+function extractBodyTextNear(html: string, anchorIdx: number, windowChars = 4000): string {
+  const window = html.slice(anchorIdx, anchorIdx + windowChars);
+  const match =
+    window.match(/"body":\{"text":"((?:[^"\\]|\\.)*)"/) || window.match(/"(?:body|text)":"((?:[^"\\]|\\.)*)"/);
+  return match ? unescapeJsonString(match[1]) : "";
+}
+
 function extractNearbyText(html: string, id: string): string {
   const idx = html.indexOf(`"ad_archive_id":"${id}"`);
   if (idx === -1) return "";
-  const window = html.slice(idx, idx + 4000);
-  const match = window.match(/"(?:body|text)":"((?:[^"\\]|\\.)*)"/);
-  return match ? unescapeJsonString(match[1]) : "";
+  return extractBodyTextNear(html, idx);
+}
+
+function normalizeCreativeText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+// "collation_count" só vem preenchido quando o próprio Facebook decide
+// "colar" um grupo de anúncios como uma coisa só — pra MUITOS anúncios
+// (confirmado ao vivo) esse campo vem null mesmo quando o anunciante está
+// rodando várias cópias praticamente idênticas do mesmo criativo, cada uma
+// com seu próprio ad_archive_id separado. Quando o campo oficial vem null,
+// calculamos um substituto: conta quantos ad_archive_id distintos na mesma
+// página têm o texto do criativo praticamente idêntico ao do anúncio alvo.
+function countMatchingCreativeCopies(html: string, anchorIdx: number): number | null {
+  const targetNorm = normalizeCreativeText(extractBodyTextNear(html, anchorIdx));
+  if (!targetNorm) return null;
+
+  const idRe = /"ad_archive_id":"(\d+)"/g;
+  const seen = new Set<string>();
+  let count = 0;
+  let m: RegExpExecArray | null;
+  while ((m = idRe.exec(html))) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    if (normalizeCreativeText(extractBodyTextNear(html, m.index)) === targetNorm) count++;
+  }
+  return count > 0 ? count : null;
 }
 
 class PlaywrightAdLibraryClient implements AdLibraryClient {
@@ -164,9 +201,14 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       const bodyText = await page.innerText("body").catch(() => "");
 
+      // "collation_count" vem null pra muitos anúncios mesmo quando o
+      // anunciante roda várias cópias do mesmo criativo (validado ao vivo) —
+      // nesse caso, calcula o substituto contando cópias com texto idêntico.
+      const collation = nearestNumberField(html, idIdx, "collation_count") ?? countMatchingCreativeCopies(html, idIdx);
+
       return {
         link: nearestField(html, idIdx, "link_url"),
-        collation: nearestNumberField(html, idIdx, "collation_count"),
+        collation,
         pageId: nearestField(html, idIdx, "page_id"),
         pageName: nearestField(html, idIdx, "page_name"),
         adText: bodyText,
