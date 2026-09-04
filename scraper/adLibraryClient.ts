@@ -19,6 +19,9 @@ export interface AdDetails {
   pageId: string | null;
   pageName: string | null;
   adText: string;
+  // Texto do criativo em si (o "body" do anúncio), separado do adText que
+  // é o innerText da página inteira.
+  creativeText: string;
   // "start_date" da Biblioteca (timestamp Unix, segundos) — quando o
   // anúncio começou a rodar de verdade ("Veiculação iniciada em"). Null
   // quando o campo não vem na página.
@@ -42,11 +45,14 @@ export interface AdLibraryClient {
   // nome real do produto do <title>, e ler o preço praticado. Null se a
   // página não carregar.
   fetchLandingPage(url: string): Promise<{ title: string; text: string } | null>;
-  // Quantos anúncios ativos o anunciante tem no total — lê o "~N
-  // resultados" que a própria Biblioteca mostra no topo da página dele.
-  // É a medida de "quantos criativos estão rodando" usada tanto pra
-  // ofertas novas quanto na revalidação.
-  countAdvertiserCreatives(pageId: string): Promise<number | null>;
+  // Quantos anúncios ativos o anunciante roda DESTA oferta. Busca dentro
+  // da página do anunciante filtrando pelo texto do criativo e lê o "~N
+  // resultados" que a própria Biblioteca informa.
+  //
+  // Contar todos os anúncios do anunciante (sem filtrar pelo texto) estava
+  // errado: quem vende vários produtos inflava o número — a Professora
+  // Mikaelly aparecia com 110 quando o Painel Agosto Lilás tinha 2.
+  countOfferCreatives(pageId: string, creativeText: string): Promise<number | null>;
   // Quantas vezes a Biblioteca de Anúncios respondeu exigindo captcha ou
   // com o payload vazio. Rodando de um IP de datacenter (ex: runner do
   // GitHub Actions) o Facebook trata a requisição diferente de um IP
@@ -180,6 +186,23 @@ function isCaptchaRequired(html: string): boolean {
   return /"xfb_ad_library_is_captcha_required":true/.test(html);
 }
 
+// Monta a frase usada pra filtrar os anúncios de UMA oferta dentro da
+// página do anunciante. Emoji e aspas quebram a busca entre aspas da
+// Biblioteca, então saem; frase curta demais casaria com qualquer coisa,
+// então é descartada.
+function frasePraBusca(creativeText: string): string | null {
+  const limpo = creativeText
+    .replace(/[\p{Extended_Pictographic}]/gu, " ")
+    .replace(/["'“”‘’]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (limpo.length < 25) return null;
+
+  const frase = limpo.split(" ").slice(0, 10).join(" ").slice(0, 90).trim();
+  return frase.length >= 25 ? frase : null;
+}
+
 // A Biblioteca mostra "~1.234 resultados" (ou "results") no topo de
 // qualquer página de busca — seja busca por palavra-chave (concorrência do
 // nicho) ou por anunciante (quantos anúncios ativos ele tem).
@@ -273,6 +296,10 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
         pageId: nearestField(html, idIdx, "page_id"),
         pageName: nearestField(html, idIdx, "page_name"),
         adText: bodyText,
+        // Texto do próprio criativo (não o innerText da página inteira) —
+        // é ele que permite contar quantos anúncios DESTA oferta o
+        // anunciante roda, em vez de contar todos os anúncios dele.
+        creativeText: extractBodyTextNear(html, idIdx),
         startDateUnix: nearestNumberField(html, idIdx, "start_date"),
       };
     } catch {
@@ -369,13 +396,21 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
     }
   }
 
-  async countAdvertiserCreatives(pageId: string): Promise<number | null> {
+  async countOfferCreatives(pageId: string, creativeText: string): Promise<number | null> {
+    const frase = frasePraBusca(creativeText);
+    if (!frase) return null;
+
     const context = await this.contextPromise;
     const page = await context.newPage();
     try {
+      // Busca DENTRO da página do anunciante, filtrando pela frase do
+      // criativo — a Biblioteca então informa "~N resultados" já contando
+      // só os anúncios desta oferta. Validado ao vivo: a Mikaelly tem 110
+      // anúncios no total mas ~2 do Painel Agosto Lilás; a Joana Cabral,
+      // que roda uma oferta só, dá ~32 de ~33.
       const url = `${BASE_URL}?active_status=active&ad_type=all&country=BR&view_all_page_id=${encodeURIComponent(
         pageId
-      )}&search_type=page&media_type=all`;
+      )}&search_type=page&media_type=all&q=${encodeURIComponent(`"${frase}"`)}`;
 
       await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
       await randomDelay(800, 1600);
@@ -383,10 +418,6 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       const html = await page.content();
       if (isCaptchaRequired(html)) this.blockStats.captcha++;
 
-      // A própria Biblioteca já mostra "~N resultados" no topo da página do
-      // anunciante — é o número de anúncios ativos dele. Ler esse número é
-      // mais confiável (e mais barato) do que contar os cards carregados,
-      // que são paginados e ficam sempre subestimados.
       const bodyText = await page.innerText("body").catch(() => "");
       return parseResultCount(bodyText);
     } catch {

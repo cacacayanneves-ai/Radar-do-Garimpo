@@ -221,7 +221,10 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       // relacionados do anunciante, varia por ambiente) — quando não
       // informa, conta pela página que lista todos os anúncios daquele
       // anunciante.
-      let collationHoje = await client.countAdvertiserCreatives(details.pageId ?? offer.pageId);
+      let collationHoje = await client.countOfferCreatives(
+        details.pageId ?? offer.pageId,
+        details.creativeText
+      );
       await randomDelay(700, 1400);
       if (collationHoje == null) collationHoje = details.collation;
 
@@ -461,11 +464,11 @@ async function mineNewOffers(
 
       const ticketFinal = precoDaPagina != null ? formatPreco(precoDaPagina) : ticket;
 
-      // Só pros finalistas: pega o número exato de anúncios ativos do
-      // anunciante ("~N resultados" no topo da página dele). O hint da
-      // página de busca serve de filtro barato lá em cima, mas subestima —
-      // a busca só carrega as primeiras dezenas de cards.
-      const collationExata = await client.countAdvertiserCreatives(details.pageId);
+      // Só pros finalistas: número exato de anúncios DESTA oferta, pedindo
+      // à Biblioteca a contagem já filtrada pelo texto do criativo. O hint
+      // da página de busca serve de filtro barato lá em cima, mas
+      // subestima — a busca só carrega as primeiras dezenas de cards.
+      const collationExata = await client.countOfferCreatives(details.pageId, details.creativeText);
       await randomDelay(600, 1200);
       const collationFinal = collationExata ?? collation;
 

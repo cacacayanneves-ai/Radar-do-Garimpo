@@ -224,6 +224,21 @@ const NON_DIGITAL_SIGNALS = [
   "concurso petrobras",
   "apostila enem",
   "concurso enem",
+  // Concurso militar/policial: "Preparatório CBMMA" passou porque a lista
+  // só tinha as palavras genéricas ("concurso público", "edital"), e o
+  // anúncio usava só a sigla da corporação.
+  "preparatório",
+  "preparatorio",
+  "bombeiro militar",
+  "polícia militar",
+  "policia militar",
+  "polícia civil",
+  "policia civil",
+  "soldado pm",
+  "cbm",
+  "pmma",
+  "prf",
+  "apostila digital para concurso",
   // Software/ferramenta/licença — é produto digital, mas não é infoproduto
   // (ex: speedcorel.com, que vende macro pro CorelDRAW). Fora do escopo.
   "macro para corel",
