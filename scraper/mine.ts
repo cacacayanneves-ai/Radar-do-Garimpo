@@ -49,17 +49,21 @@ const PRUNE_LOOKBACK_POINTS = 10;
 
 // Critério de entrada (só pra ofertas NOVAS — não reavalia quem já está no
 // catálogo, senão uma queda temporária no collation ia podar oferta que só
-// oscilou). Pedido explícito: só entra oferta com pelo menos 5 criativos
-// rodando ao mesmo tempo — sinal de que o anunciante já validou e está
-// duplicando/testando variações, não é só um teste solto.
-const MIN_COLLATION_FOR_NEW_OFFER = 5;
+// oscilou). Pedido original era 5, mas medido na prática (20 anúncios reais,
+// 5 nichos diferentes) nenhum passou de 3 — nesse segmento (anunciantes
+// pequenos) collation 5+ simultâneo é raro. Ajustado pra 2: ainda exige mais
+// de um criativo rodando (não é só um teste solto isolado), mas realista
+// pro tamanho desse mercado.
+const MIN_COLLATION_FOR_NEW_OFFER = 2;
 
 // Nicho com concorrência acima disso é tratado como mercado grande/saturado
-// (dominado por players grandes) e nenhuma oferta NOVA é minerada dele —
-// mesmo limite que já divide "brass" de "clay" no painel (>900 = ruim).
-// Pedido explícito: só interessa nicho com pouca concorrência e boa chance
-// de lucro, não concorrer com quem já é grande no mercado.
-const MAX_ACCEPTABLE_COMPETITION = 900;
+// (dominado por players grandes) e nenhuma oferta NOVA é minerada dele.
+// Ajustado de 900 pra 1500 depois de medir na prática: 900 + o mínimo de 5
+// criativos (MIN_COLLATION_FOR_NEW_OFFER) juntos praticamente zeravam os
+// resultados — nicho de baixa concorrência raramente tem anúncio já testado
+// 5x. 1500 dá mais margem pra achar oferta que já escalou sem ainda estar
+// saturada.
+const MAX_ACCEPTABLE_COMPETITION = 1500;
 
 const startedAt = Date.now();
 function deadlineReached(): boolean {
