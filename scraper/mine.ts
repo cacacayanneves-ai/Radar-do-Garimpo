@@ -73,13 +73,21 @@ function daysSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
 }
 
-// Chave de "mesmo produto": mesma página anunciante + mesma página de venda.
-// Múltiplos anúncios (libraryId diferentes) podem estar testando o mesmo
-// produto — isso já é o que o campo `collation` mede por criativo, mas
-// diferentes criativos testando a mesma oferta não devem virar linhas
-// duplicadas no catálogo.
-function productKey(pageId: string, vendaUrl: string): string {
-  return `${pageId}::${vendaUrl}`;
+// Chaves de "mesmo produto": múltiplos anúncios (libraryId diferentes) podem
+// estar testando a mesma oferta — isso já é o que o campo `collation` mede
+// por criativo, mas diferentes criativos testando a mesma oferta não devem
+// virar linhas duplicadas no catálogo. Duas formas de bater "é o mesmo
+// produto": mesma página + mesma URL exata de venda, OU mesma página + texto
+// do anúncio praticamente idêntico (cobre o caso comum de variantes de UTM/
+// versão na URL, ex: "apostilas-f3-v3-gratuito" vs "apostilas-f4-v3-gratuito"
+// do mesmo anunciante com o mesmo texto "Garanta já sua apostila").
+function productUrlKey(pageId: string, vendaUrl: string): string {
+  return `url::${pageId}::${vendaUrl}`;
+}
+
+function productTextKey(pageId: string, produto: string): string {
+  const normalized = produto.toLowerCase().trim().replace(/\s+/g, " ").slice(0, 80);
+  return `text::${pageId}::${normalized}`;
 }
 
 function detectStrongEscalation(history: HistoryPoint[]): boolean {
@@ -153,7 +161,9 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         collation: details.collation,
         history,
       });
-      trackedProductKeys.add(productKey(details.pageId ?? offer.pageId, details.link));
+      const revalidatedPageId = details.pageId ?? offer.pageId;
+      trackedProductKeys.add(productUrlKey(revalidatedPageId, details.link));
+      trackedProductKeys.add(productTextKey(revalidatedPageId, offer.produto));
     }
 
     if (i + REVALIDATE_BATCH_SIZE < current.length) {
@@ -204,8 +214,15 @@ async function mineNewOffers(
       // pra confirmar que é o tipo de oferta que estamos garimpando.
       if (!hasDigitalProductSignal(combinedText) && !ticket) continue;
 
-      const dedupeKey = productKey(details.pageId, details.link);
-      if (trackedProductKeys.has(dedupeKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
+      // Aproximação do nome do produto: primeira linha relevante do texto do
+      // criativo capturado na busca (heurístico — ver adLibraryClient.ts),
+      // caindo para o nome da página quando não há texto disponível.
+      const creativeLine = candidate.adText.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 6);
+      const produto = (creativeLine || details.pageName).slice(0, 120);
+
+      const urlKey = productUrlKey(details.pageId, details.link);
+      const textKey = productTextKey(details.pageId, produto);
+      if (trackedProductKeys.has(urlKey) || trackedProductKeys.has(textKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
 
       let concorrencia = nicheCompetitionCache.get(keyword);
       if (concorrencia === undefined) {
@@ -214,11 +231,6 @@ async function mineNewOffers(
         nicheCompetitionCache.set(keyword, concorrencia);
       }
 
-      // Aproximação do nome do produto: primeira linha relevante do texto do
-      // criativo capturado na busca (heurístico — ver adLibraryClient.ts),
-      // caindo para o nome da página quando não há texto disponível.
-      const creativeLine = candidate.adText.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 6);
-      const produto = (creativeLine || details.pageName).slice(0, 120);
       const id = generateOfferId(produto, details.pageName, candidate.libraryId);
 
       const offer: UpsertOfferInput = {
@@ -242,7 +254,8 @@ async function mineNewOffers(
 
       newOffers.push(offer);
       trackedLibraryIds.add(candidate.libraryId);
-      trackedProductKeys.add(dedupeKey);
+      trackedProductKeys.add(urlKey);
+      trackedProductKeys.add(textKey);
       report.novas.push({
         id,
         produto,
