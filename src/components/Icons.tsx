@@ -24,11 +24,15 @@ export function IconMegafone() {
   );
 }
 
-export function IconEtiqueta() {
+// Loja/anunciante — usado pro link "todos os anúncios do anunciante", pra
+// não ficar parecido com o ícone do anúncio único (megafone). No celular não
+// tem hover pra ler o title, então o ícone sozinho precisa dar a diferença.
+export function IconLoja() {
   return (
     <svg {...base}>
-      <path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9Z" />
-      <circle cx="7.5" cy="7.5" r="1.4" />
+      <path d="M4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9" />
+      <path d="M3 10 4.5 4h15L21 10" />
+      <path d="M3 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0" />
     </svg>
   );
 }
