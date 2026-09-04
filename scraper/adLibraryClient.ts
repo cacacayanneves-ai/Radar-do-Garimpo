@@ -37,6 +37,12 @@ export interface AdLibraryClient {
   // verdade, não um formulário de lead/quiz ou conteúdo de blog. Retorna
   // null se a página não carregar.
   fetchLandingPageText(url: string): Promise<string | null>;
+  // Quantas vezes a Biblioteca de Anúncios respondeu exigindo captcha ou
+  // com o payload vazio. Rodando de um IP de datacenter (ex: runner do
+  // GitHub Actions) o Facebook trata a requisição diferente de um IP
+  // residencial — sem isso não dá pra distinguir "não achou nada" de
+  // "fomos bloqueados", já que os dois terminam em zero ofertas.
+  getBlockStats(): { captcha: number; emptyPayload: number; navFailures: number };
   close(): Promise<void>;
 }
 
@@ -157,20 +163,54 @@ function countMatchingCreativeCopies(html: string, anchorIdx: number): number | 
   return count > 0 ? count : null;
 }
 
+// O HTML da Biblioteca de Anúncios traz essa flag no payload embutido —
+// quando vem `true`, o Facebook está exigindo captcha e nenhum resultado
+// real é retornado.
+function isCaptchaRequired(html: string): boolean {
+  return /"xfb_ad_library_is_captcha_required":true/.test(html);
+}
+
 class PlaywrightAdLibraryClient implements AdLibraryClient {
   private browserPromise: Promise<Browser>;
   private contextPromise: Promise<BrowserContext>;
+  private blockStats = { captcha: 0, emptyPayload: 0, navFailures: 0 };
+
+  getBlockStats() {
+    return { ...this.blockStats };
+  }
 
   constructor() {
-    this.browserPromise = chromium.launch({ headless: true });
-    this.contextPromise = this.browserPromise.then((browser) =>
-      browser.newContext({
+    // Rodando de um IP de datacenter (runner do GitHub Actions), o Facebook
+    // é bem mais propenso a responder com captcha/payload vazio do que de um
+    // IP residencial. Não dá pra mudar o IP, mas dá pra não parecer um bot
+    // óbvio: desliga a flag de automação do Chromium, manda os headers que
+    // um navegador de verdade manda, e usa fuso/idioma do Brasil (a busca é
+    // country=BR).
+    this.browserPromise = chromium.launch({
+      headless: true,
+      args: [
+        "--disable-blink-features=AutomationControlled",
+        "--disable-dev-shm-usage",
+        "--no-sandbox",
+      ],
+    });
+    this.contextPromise = this.browserPromise.then(async (browser) => {
+      const context = await browser.newContext({
         userAgent:
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         locale: "pt-BR",
+        timezoneId: "America/Sao_Paulo",
         viewport: { width: 1366, height: 900 },
-      })
-    );
+        extraHTTPHeaders: {
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        },
+      });
+      // navigator.webdriver = true entrega que é automação; remove.
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+      });
+      return context;
+    });
   }
 
   async fetchAdDetails(libraryId: string): Promise<AdDetails | null> {
@@ -184,6 +224,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       await randomDelay(600, 1400);
 
       const html = await page.content();
+      if (isCaptchaRequired(html)) this.blockStats.captcha++;
 
       // A página da Biblioteca de Anúncios SEMPRE retorna HTTP 200 com o
       // shell completo do app, mesmo pra um `id` inexistente — inclusive com
@@ -214,6 +255,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
         adText: bodyText,
       };
     } catch {
+      this.blockStats.navFailures++;
       return null;
     } finally {
       await page.close();
@@ -238,10 +280,13 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       }
 
       const html = await page.content();
+      if (isCaptchaRequired(html)) this.blockStats.captcha++;
 
       // O id de cada anúncio aparece embutido no HTML como "ad_archive_id":"<id>".
       const idMatches = Array.from(html.matchAll(/"ad_archive_id":"(\d+)"/g)).map((m) => m[1]);
       const uniqueIds = Array.from(new Set(idMatches)).slice(0, limit);
+
+      if (uniqueIds.length === 0) this.blockStats.emptyPayload++;
 
       const results: SearchResultCard[] = uniqueIds.map((libraryId) => ({
         libraryId,
@@ -252,6 +297,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       return results;
     } catch {
+      this.blockStats.navFailures++;
       return [];
     } finally {
       await page.close();
@@ -269,6 +315,9 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
       await randomDelay(800, 1600);
 
+      const html = await page.content();
+      if (isCaptchaRequired(html)) this.blockStats.captcha++;
+
       const bodyText = await page.innerText("body").catch(() => "");
       // Padrão típico: "~1.234 resultados" ou "1.234 results".
       const match = bodyText.match(/[~]?\s?([\d.,]+)\s*(resultados|results)/i);
@@ -277,6 +326,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       const numeric = parseInt(match[1].replace(/[.,]/g, ""), 10);
       return Number.isNaN(numeric) ? null : numeric;
     } catch {
+      this.blockStats.navFailures++;
       return null;
     } finally {
       await page.close();

@@ -125,6 +125,54 @@ interface RoundReport {
   escalations: { id: string; produto: string; de: number; para: number }[];
 }
 
+// Contadores do funil de mineração. São reportados junto com o status da
+// rodada porque o log do GitHub Actions não é acessível de fora — sem isso,
+// uma rodada que termina com zero ofertas é indistinguível de uma rodada
+// bloqueada pelo Facebook.
+interface FunnelStats {
+  nichosPulados: number;
+  candidatos: number;
+  semLink: number;
+  poucosCriativos: number;
+  whatsapp: number;
+  linkMeta: number;
+  instagram: number;
+  semPageInfo: number;
+  naoDigital: number;
+  ticketFora: number;
+  semSinalDigital: number;
+  duplicada: number;
+  landingRuim: number;
+  aceitas: number;
+}
+
+function novoFunnel(): FunnelStats {
+  return {
+    nichosPulados: 0, candidatos: 0, semLink: 0, poucosCriativos: 0, whatsapp: 0,
+    linkMeta: 0, instagram: 0, semPageInfo: 0, naoDigital: 0, ticketFora: 0,
+    semSinalDigital: 0, duplicada: 0, landingRuim: 0, aceitas: 0,
+  };
+}
+
+// Compacta o funil num texto curto, só com o que não é zero — vai no
+// lastRunNota, que é o que aparece no rodapé do painel.
+function resumirFunnel(f: FunnelStats, block: { captcha: number; emptyPayload: number; navFailures: number }): string {
+  const partes: string[] = [`${f.candidatos} candidatos`];
+  const rejeicoes: [string, number][] = [
+    ["nichos pulados", f.nichosPulados], ["sem link", f.semLink],
+    ["poucos criativos", f.poucosCriativos], ["whatsapp", f.whatsapp],
+    ["link Meta", f.linkMeta], ["instagram", f.instagram],
+    ["sem page info", f.semPageInfo], ["não-digital", f.naoDigital],
+    ["ticket fora", f.ticketFora], ["sem sinal digital", f.semSinalDigital],
+    ["duplicada", f.duplicada], ["landing ruim", f.landingRuim],
+  ];
+  for (const [label, n] of rejeicoes) if (n > 0) partes.push(`${n} ${label}`);
+  if (block.captcha > 0) partes.push(`⚠️ ${block.captcha} captcha`);
+  if (block.emptyPayload > 0) partes.push(`⚠️ ${block.emptyPayload} busca vazia`);
+  if (block.navFailures > 0) partes.push(`⚠️ ${block.navFailures} falhas de navegação`);
+  return partes.join(", ");
+}
+
 async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>) {
   const current = await fetchCurrentOffers();
   const trackedLibraryIds = new Set(current.map((o) => o.libraryId));
@@ -197,7 +245,8 @@ async function mineNewOffers(
   client: ReturnType<typeof getAdLibraryClient>,
   trackedLibraryIds: Set<string>,
   trackedProductKeys: Set<string>,
-  report: RoundReport
+  report: RoundReport,
+  funnel: FunnelStats
 ) {
   const keywords = keywordsForToday(7);
   const nicheCompetitionCache = new Map<string, number | null>();
@@ -215,7 +264,10 @@ async function mineNewOffers(
       await randomDelay(800, 1500);
       nicheCompetitionCache.set(keyword, concorrencia);
     }
-    if (concorrencia != null && concorrencia > MAX_ACCEPTABLE_COMPETITION) continue;
+    if (concorrencia != null && concorrencia > MAX_ACCEPTABLE_COMPETITION) {
+      funnel.nichosPulados++;
+      continue;
+    }
 
     const candidates = await client.searchAds(keyword, 20);
     await randomDelay(1200, 2200);
@@ -224,27 +276,56 @@ async function mineNewOffers(
       if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
       if (trackedLibraryIds.has(candidate.libraryId)) continue;
 
+      funnel.candidatos++;
+
       const details = await client.fetchAdDetails(candidate.libraryId);
       await randomDelay(700, 1500);
-      if (!details || !details.link) continue;
+      if (!details || !details.link) {
+        funnel.semLink++;
+        continue;
+      }
 
-      if ((details.collation ?? 0) < MIN_COLLATION_FOR_NEW_OFFER) continue; // poucos criativos rodando — ainda não validado.
+      if ((details.collation ?? 0) < MIN_COLLATION_FOR_NEW_OFFER) {
+        funnel.poucosCriativos++;
+        continue; // poucos criativos rodando — ainda não validado.
+      }
 
-      if (isWhatsappLink(details.link)) continue; // regra de negócio: nunca WhatsApp.
-      if (isFacebookOwnedLink(details.link)) continue; // não é uma página de venda de verdade.
-      if (isGenericInstagramProfile(details.link)) continue;
-      if (!details.pageName || !details.pageId) continue;
+      if (isWhatsappLink(details.link)) {
+        funnel.whatsapp++;
+        continue; // regra de negócio: nunca WhatsApp.
+      }
+      if (isFacebookOwnedLink(details.link)) {
+        funnel.linkMeta++;
+        continue; // não é uma página de venda de verdade.
+      }
+      if (isGenericInstagramProfile(details.link)) {
+        funnel.instagram++;
+        continue;
+      }
+      if (!details.pageName || !details.pageId) {
+        funnel.semPageInfo++;
+        continue;
+      }
 
       const combinedText = `${candidate.adText} ${details.adText}`;
-      if (hasNonDigitalSignal(combinedText)) continue; // sinal forte de produto físico/serviço/oferta financeira.
+      if (hasNonDigitalSignal(combinedText)) {
+        funnel.naoDigital++;
+        continue; // sinal forte de produto físico/serviço/oferta financeira.
+      }
 
       const ticket = extractTicket(combinedText);
-      if (!ticketInRange(ticket)) continue;
+      if (!ticketInRange(ticket)) {
+        funnel.ticketFora++;
+        continue;
+      }
 
       // Sem nenhuma evidência de que é infoproduto digital (nem palavra tipo
       // "PDF"/"apostila", nem preço declarado low-ticket) — descarta, não dá
       // pra confirmar que é o tipo de oferta que estamos garimpando.
-      if (!hasDigitalProductSignal(combinedText) && !ticket) continue;
+      if (!hasDigitalProductSignal(combinedText) && !ticket) {
+        funnel.semSinalDigital++;
+        continue;
+      }
 
       // Aproximação do nome do produto: primeira linha relevante do texto do
       // criativo capturado na busca (heurístico — ver adLibraryClient.ts),
@@ -254,7 +335,10 @@ async function mineNewOffers(
 
       const urlKey = productUrlKey(details.pageId, details.link);
       const textKey = productTextKey(details.pageId, produto);
-      if (trackedProductKeys.has(urlKey) || trackedProductKeys.has(textKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
+      if (trackedProductKeys.has(urlKey) || trackedProductKeys.has(textKey)) {
+        funnel.duplicada++;
+        continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
+      }
 
       // Última checagem, e a mais cara (visita a página de fora do
       // facebook.com): confirma que a página de venda é mesmo uma página de
@@ -265,8 +349,13 @@ async function mineNewOffers(
       await randomDelay(600, 1200);
       if (landingText) {
         const verdict = verifyLandingPage(landingText);
-        if (!verdict.ok) continue;
+        if (!verdict.ok) {
+          funnel.landingRuim++;
+          continue;
+        }
       }
+
+      funnel.aceitas++;
 
       const id = generateOfferId(produto, details.pageName, candidate.libraryId);
 
@@ -338,6 +427,8 @@ async function main() {
   console.log(`Radar do Garimpo — iniciando mineração em ${new Date().toISOString()}`);
   const client = getAdLibraryClient();
 
+  const funnel = novoFunnel();
+
   try {
     const { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report } = await revalidateExisting(client);
 
@@ -345,7 +436,7 @@ async function main() {
       await upsertOffers(toUpsert);
     }
 
-    const newOffers = await mineNewOffers(client, trackedLibraryIds, trackedProductKeys, report);
+    const newOffers = await mineNewOffers(client, trackedLibraryIds, trackedProductKeys, report, funnel);
     if (newOffers.length > 0) {
       await upsertOffers(newOffers);
     }
@@ -363,8 +454,11 @@ async function main() {
         ? `${report.escalations[0].id} escalou de ${report.escalations[0].de} para ${report.escalations[0].para}`
         : `${newOffers.length} novas ofertas minerada(s), ${toDelete.length} podada(s)`;
 
+    const diagnostico = resumirFunnel(funnel, client.getBlockStats());
+    console.log("\nFunil da rodada:", JSON.stringify(funnel), JSON.stringify(client.getBlockStats()));
+
     await updateStatus({
-      lastRunNota: headline,
+      lastRunNota: `${headline} — ${diagnostico}`,
       offersTracked,
       novasHoje: newOffers.length,
       podadasHoje: toDelete.length,
