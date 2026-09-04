@@ -1011,3 +1011,19 @@ tbody td {
   font-size: 15px;
   box-shadow: var(--shadow-xs);
 }
+
+.theme-toggle:hover {
+  color: var(--ink);
+}
+
+/* Gira o ícone de recarregar enquanto a página está saindo — dá feedback de
+   que o clique registrou, já que o reload em si acontece quase na hora. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.theme-toggle.spinning svg {
+  animation: spin 0.6s linear infinite;
+}

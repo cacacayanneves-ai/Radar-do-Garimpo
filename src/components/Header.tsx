@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconRecarregar } from "./Icons";
 
 // Marca do radar: círculos concêntricos, varredura e dois blips. Desenhada
 // em SVG (não emoji) pra herdar a cor do tema e ficar nítida em qualquer
@@ -29,6 +30,7 @@ function RadarMark() {
 
 export default function Header({ offersCount }: { offersCount: number }) {
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
+  const [recarregando, setRecarregando] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("radar-theme");
@@ -45,6 +47,14 @@ export default function Header({ offersCount }: { offersCount: number }) {
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     window.localStorage.setItem("radar-theme", next);
+  }
+
+  // Recarrega a página inteira (não só os dados) — importante no app
+  // instalado do iOS, que às vezes fica preso numa versão antiga do site
+  // sem esse empurrão manual, já que não tem F5 nem puxar-pra-atualizar.
+  function recarregar() {
+    setRecarregando(true);
+    window.location.reload();
   }
 
   return (
@@ -64,6 +74,14 @@ export default function Header({ offersCount }: { offersCount: number }) {
           <span className="dot-live" />
           {offersCount} {offersCount === 1 ? "oferta" : "ofertas"} sob vigilância
         </div>
+        <button
+          className={`theme-toggle ${recarregando ? "spinning" : ""}`}
+          onClick={recarregar}
+          title="Recarregar a página"
+          aria-label="Recarregar a página"
+        >
+          <IconRecarregar />
+        </button>
         <button className="theme-toggle" onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema claro/escuro">
           {theme === "dark" ? "☀️" : "🌙"}
         </button>

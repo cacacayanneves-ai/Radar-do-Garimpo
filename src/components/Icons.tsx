@@ -68,6 +68,21 @@ export function IconLixeira() {
   );
 }
 
+// Recarregar — usado no cabeçalho pra dar reload da página. Existe porque
+// no modo "app instalado" do iOS (Adicionar à Tela de Início) não tem barra
+// de endereço nem puxar-pra-atualizar; sem esse botão não tinha como o
+// Cayan forçar uma atualização por lá.
+export function IconRecarregar() {
+  return (
+    <svg {...base}>
+      <path d="M3 12a9 9 0 0 1 15.3-6.36" />
+      <path d="M21 12a9 9 0 0 1-15.3 6.36" />
+      <path d="M18 3v5h-5" />
+      <path d="M6 21v-5h5" />
+    </svg>
+  );
+}
+
 export function IconRestaurar() {
   return (
     <svg {...base}>
