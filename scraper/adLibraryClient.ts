@@ -32,11 +32,12 @@ export interface AdLibraryClient {
   fetchAdDetails(libraryId: string): Promise<AdDetails | null>;
   searchAds(keyword: string, limit?: number): Promise<SearchResultCard[]>;
   searchCompetitionCount(keyword: string): Promise<number | null>;
-  // Visita a própria página de venda (fora do facebook.com) e retorna o
-  // texto visível dela — usado pra confirmar que é uma página de venda de
-  // verdade, não um formulário de lead/quiz ou conteúdo de blog. Retorna
-  // null se a página não carregar.
-  fetchLandingPageText(url: string): Promise<string | null>;
+  // Visita a própria página de venda (fora do facebook.com) e retorna
+  // título + texto visível. Serve pra três coisas: confirmar que é mesmo
+  // uma página de venda (não quiz/blog/loja física/busca vazia), tirar o
+  // nome real do produto do <title>, e ler o preço praticado. Null se a
+  // página não carregar.
+  fetchLandingPage(url: string): Promise<{ title: string; text: string } | null>;
   // Quantos anúncios ativos o anunciante tem no total — lê o "~N
   // resultados" que a própria Biblioteca mostra no topo da página dele.
   // É a medida de "quantos criativos estão rodando" usada tanto pra
@@ -391,14 +392,21 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
     }
   }
 
-  async fetchLandingPageText(url: string): Promise<string | null> {
+  async fetchLandingPage(url: string): Promise<{ title: string; text: string } | null> {
     const context = await this.contextPromise;
     const page = await context.newPage();
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
-      await randomDelay(600, 1200);
-      const text = await page.innerText("body").catch(() => "");
-      return text || null;
+      // "networkidle" (e não domcontentloaded): muita página de venda
+      // renderiza preço e conteúdo por JS depois do DOM inicial. Lendo cedo
+      // demais, o preço saía diferente a cada leitura da MESMA página.
+      await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
+      await randomDelay(1200, 2000);
+      const [title, text] = await Promise.all([
+        page.title().catch(() => ""),
+        page.innerText("body").catch(() => ""),
+      ]);
+      if (!title && !text) return null;
+      return { title: title ?? "", text: text ?? "" };
     } catch {
       return null;
     } finally {

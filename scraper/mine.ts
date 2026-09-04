@@ -2,7 +2,9 @@ import "dotenv/config";
 import { getAdLibraryClient, randomDelay, type AdDetails } from "./adLibraryClient";
 import { keywordsForToday } from "./keywords";
 import {
+  extractPriceFromPage,
   extractTicket,
+  formatPreco,
   generateOfferId,
   guessInternacional,
   guessRiscoPolitica,
@@ -11,6 +13,8 @@ import {
   isFacebookOwnedLink,
   isGenericInstagramProfile,
   isWhatsappLink,
+  precoNaFaixa,
+  produtoFromTitle,
   ticketInRange,
   verifyLandingPage,
 } from "./heuristics";
@@ -370,11 +374,11 @@ async function mineNewOffers(
         continue;
       }
 
-      // Aproximação do nome do produto: primeira linha relevante do texto do
-      // criativo capturado na busca (heurístico — ver adLibraryClient.ts),
-      // caindo para o nome da página quando não há texto disponível.
+      // Nome provisório do produto: primeira linha relevante do texto do
+      // criativo. É só a isca do anúncio, não o nome real — logo abaixo,
+      // se a página de venda tiver um <title> aproveitável, ele substitui.
       const creativeLine = candidate.adText.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 6);
-      const produto = (creativeLine || details.pageName).slice(0, 120);
+      let produto = (creativeLine || details.pageName).slice(0, 120);
 
       const urlKey = productUrlKey(details.pageId, details.link);
       const textKey = productTextKey(details.pageId, produto);
@@ -385,18 +389,35 @@ async function mineNewOffers(
 
       // Última checagem, e a mais cara (visita a página de fora do
       // facebook.com): confirma que a página de venda é mesmo uma página de
-      // venda — não um blog, formulário de lead/quiz, ou site em outro
-      // idioma. Fica por último de propósito, só roda pra quem já passou em
-      // tudo o resto.
-      const landingText = await client.fetchLandingPageText(details.link);
+      // venda — não blog, formulário de lead, quiz, loja de produto físico,
+      // página de busca vazia ou site em outro idioma. Fica por último de
+      // propósito, só roda pra quem já passou em tudo o resto. De quebra,
+      // é dela que sai o nome real do produto e o preço praticado.
+      const landing = await client.fetchLandingPage(details.link);
       await randomDelay(600, 1200);
-      if (landingText) {
-        const verdict = verifyLandingPage(landingText);
+
+      let precoDaPagina: number | null = null;
+      if (landing) {
+        const verdict = verifyLandingPage(landing.text, details.link);
         if (!verdict.ok) {
           funnel.landingRuim++;
           continue;
         }
+
+        // O anúncio quase nunca declara preço; a página de venda sempre
+        // mostra. Com o preço real dá pra aplicar a faixa de R$9–50 de
+        // verdade (antes ela só valia quando o anúncio citava o valor).
+        precoDaPagina = extractPriceFromPage(landing.text);
+        if (precoDaPagina != null && !precoNaFaixa(precoDaPagina)) {
+          funnel.ticketFora++;
+          continue;
+        }
+
+        const nomeReal = produtoFromTitle(landing.title);
+        if (nomeReal) produto = nomeReal;
       }
+
+      const ticketFinal = precoDaPagina != null ? formatPreco(precoDaPagina) : ticket;
 
       // Só pros finalistas: pega o número exato de anúncios ativos do
       // anunciante ("~N resultados" no topo da página dele). O hint da
@@ -415,7 +436,7 @@ async function mineNewOffers(
         niche: keyword,
         produto,
         anunciante: details.pageName,
-        ticket,
+        ticket: ticketFinal,
         vendaUrl: details.link,
         libraryId: candidate.libraryId,
         pageId: details.pageId,
@@ -433,6 +454,9 @@ async function mineNewOffers(
       trackedLibraryIds.add(candidate.libraryId);
       trackedProductKeys.add(urlKey);
       trackedProductKeys.add(textKey);
+      // O produto pode ter sido renomeado pelo <title> da página — guarda a
+      // chave do nome final também, senão a próxima rodada não reconhece.
+      trackedProductKeys.add(productTextKey(details.pageId, produto));
       report.novas.push({
         id,
         produto,

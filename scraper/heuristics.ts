@@ -274,10 +274,12 @@ const SPANISH_ONLY_SIGNALS = [
 // Página que pede dados de contato pra "liberar" o conteúdo, em vez de
 // vender direto — formulário de captação de lead, não é a oferta se
 // vendendo sozinha.
+// Só sinais FORTES: "preencha seus dados"/"preencha os dados" saíram da
+// lista porque loja de produto digital legítima (WooCommerce) usa essas
+// frases no checkout — dava falso positivo em página de venda de verdade.
 const LEAD_FORM_PAGE_SIGNALS = [
   "preencha o formulário",
-  "preencha os dados",
-  "preencha seus dados",
+  "preencha o formulario",
   "acesse o conteúdo",
   "acesse o conteudo",
   "receber comunicações",
@@ -295,12 +297,76 @@ const LEAD_FORM_PAGE_SIGNALS = [
 const CONTENT_HUB_LINK_PATTERN = /\b(veja|confira|aprenda|baixe)\s+(aqui|a receita)\b/gi;
 const CONTENT_HUB_MIN_OCCURRENCES = 3;
 
-export interface LandingPageVerdict {
-  ok: boolean;
-  reason?: "espanhol" | "formulario_de_lead" | "conteudo_de_blog";
+// Quiz de captação em português — mesmo padrão do quiz em espanhol que já
+// era rejeitado ("Responde 4 preguntas"), só que na versão BR. Visto na
+// prática em lucrativoatelie.netlify.app: "Qual dessas opções mais combina
+// com você? / Leva menos de 3 minutos".
+const QUIZ_FUNNEL_SIGNALS = [
+  "qual dessas opções",
+  "qual dessas opcoes",
+  "responda as perguntas",
+  "responda essas perguntas",
+  "leva menos de 1 minuto",
+  "leva menos de 2 minutos",
+  "leva menos de 3 minutos",
+  "responda o quiz",
+  "faça o quiz",
+  "faca o quiz",
+];
+
+// Loja de produto FÍSICO. O sinal decisivo é frete/entrega — "carrinho" e
+// "adicionar ao carrinho" não servem, porque loja de produto digital
+// legítima (WooCommerce etc.) também tem carrinho.
+const PHYSICAL_STORE_SIGNALS = [
+  "política de frete",
+  "politica de frete",
+  "calcular frete",
+  "frete grátis",
+  "frete gratis",
+  "prazo de entrega",
+  "prazo de envio",
+  "código de rastreio",
+  "codigo de rastreio",
+  "rastrear pedido",
+  "troca, devoluções e prazos",
+  "troca, devolucoes e prazos",
+];
+
+// Página de resultado de busca (às vezes até vazia) em vez da página do
+// produto — visto na prática: um anúncio apontando pra
+// /search/?q=MOLDE+BORDADO que abria "Não há resultados para a sua pesquisa".
+const SEARCH_PAGE_SIGNALS = [
+  "não há resultados para a sua pesquisa",
+  "nao ha resultados para a sua pesquisa",
+  "nenhum resultado encontrado",
+  "nenhum produto encontrado",
+  "resultados da pesquisa",
+  "sua busca não retornou",
+  "sua busca nao retornou",
+];
+
+export function isSearchResultsUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (/\/(search|busca|pesquisa)\b/i.test(u.pathname)) return true;
+    return u.searchParams.has("q") || u.searchParams.has("s") || u.searchParams.has("busca");
+  } catch {
+    return false;
+  }
 }
 
-export function verifyLandingPage(pageText: string): LandingPageVerdict {
+export interface LandingPageVerdict {
+  ok: boolean;
+  reason?:
+    | "espanhol"
+    | "formulario_de_lead"
+    | "conteudo_de_blog"
+    | "quiz_de_captacao"
+    | "loja_fisica"
+    | "pagina_de_busca";
+}
+
+export function verifyLandingPage(pageText: string, url?: string): LandingPageVerdict {
   const text = pageText.toLowerCase();
 
   if (SPANISH_ONLY_SIGNALS.some((t) => text.includes(t))) {
@@ -311,12 +377,102 @@ export function verifyLandingPage(pageText: string): LandingPageVerdict {
     return { ok: false, reason: "formulario_de_lead" };
   }
 
+  if (QUIZ_FUNNEL_SIGNALS.some((t) => text.includes(t))) {
+    return { ok: false, reason: "quiz_de_captacao" };
+  }
+
+  if (PHYSICAL_STORE_SIGNALS.some((t) => text.includes(t))) {
+    return { ok: false, reason: "loja_fisica" };
+  }
+
+  if (SEARCH_PAGE_SIGNALS.some((t) => text.includes(t)) || (url && isSearchResultsUrl(url))) {
+    return { ok: false, reason: "pagina_de_busca" };
+  }
+
   const hubMatches = pageText.match(CONTENT_HUB_LINK_PATTERN);
   if (hubMatches && hubMatches.length >= CONTENT_HUB_MIN_OCCURRENCES) {
     return { ok: false, reason: "conteudo_de_blog" };
   }
 
   return { ok: true };
+}
+
+// Preço praticado, lido da própria página de venda. O anúncio quase nunca
+// declara o valor (por isso a coluna Ticket ficava "n/d" na maioria das
+// linhas), mas a página sempre mostra.
+//
+// Estratégia (validada contra páginas reais): usar o PRIMEIRO preço da
+// página, que é o do produto anunciado. Pegar o menor não funciona — em
+// loja com produtos relacionados o menor é de outro item (Eureka: o
+// produto custa R$10 e havia um relacionado de R$7). A moda também não
+// (Na ponta do lápis: produto R$6, mas R$3 aparecia 4x nos relacionados).
+// Antes disso, se houver "por apenas R$ X" a gente prefere esse valor,
+// porque cobre a ancoragem "de R$97 por R$27".
+function parseValor(bruto: string): number | null {
+  const valor = parseFloat(bruto.replace(/\./g, "").replace(",", "."));
+  return Number.isNaN(valor) || valor <= 0 ? null : valor;
+}
+
+export function extractPriceFromPage(pageText: string): number | null {
+  // Remove os trechos de parcelamento ("12x de R$ 2,90") antes de tudo.
+  const semParcelas = pageText.replace(/\d+\s*x\s*(de\s*)?R\$\s?[\d.,]+/gi, " ");
+
+  // "por apenas R$ 27,90" / "por R$ 27,90" vence a ancoragem "de R$ 97".
+  const porApenas = semParcelas.match(/por\s+(apenas\s+)?R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i);
+  if (porApenas) {
+    const valor = parseValor(porApenas[2]);
+    if (valor != null) return valor;
+  }
+
+  // Primeiro preço válido, na ordem da página. Pula zerados — quase toda
+  // loja mostra "R$ 0,00" do carrinho vazio no topo, antes do preço real.
+  for (const m of semParcelas.matchAll(/R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/g)) {
+    const valor = parseValor(m[1]);
+    if (valor != null) return valor;
+  }
+  return null;
+}
+
+export function precoNaFaixa(preco: number): boolean {
+  return preco >= 9 && preco <= 50;
+}
+
+export function formatPreco(preco: number): string {
+  return `R$ ${preco.toFixed(2).replace(".", ",")}`;
+}
+
+// Nome do produto tirado do <title> da página de venda — quase sempre é o
+// nome real ("+500 Moldes de Paper Squishy Prontos para Imprimir"), muito
+// melhor que a primeira linha do anúncio, que é só a isca ("Tem coisa que a
+// gente olha e já imagina usando 💙"). Retorna null quando o título não
+// serve (domínio cru, título genérico de tema, vazio).
+const TITULOS_INUTEIS = [
+  "home",
+  "início",
+  "inicio",
+  "página inicial",
+  "pagina inicial",
+  "my blog",
+  "loja",
+  "checkout",
+  "carrinho",
+  "produto",
+  "untitled",
+];
+
+export function produtoFromTitle(title: string): string | null {
+  if (!title) return null;
+
+  // "Produto X – Nome da Loja" / "Produto X | Nome da Loja" → "Produto X"
+  const principal = title.split(/\s+[–—|]\s+/)[0].trim();
+  const limpo = principal || title.trim();
+
+  if (limpo.length < 8) return null;
+  if (TITULOS_INUTEIS.includes(limpo.toLowerCase())) return null;
+  // Domínio cru como título (ex: "universocatolico.site").
+  if (/^[\w-]+\.[a-z]{2,}(\.[a-z]{2,})?$/i.test(limpo)) return null;
+
+  return limpo.slice(0, 120);
 }
 
 export function slugify(input: string): string {
