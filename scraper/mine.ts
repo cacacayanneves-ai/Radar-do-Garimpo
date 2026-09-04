@@ -630,7 +630,12 @@ async function main() {
         ? `${report.escalations[0].id} escalou de ${report.escalations[0].de} para ${report.escalations[0].para}`
         : `${newOffers.length} novas ofertas minerada(s), ${toDelete.length} podada(s)`;
 
-    const diagnostico = resumirFunnel(funnel, client.getBlockStats());
+    // O motivo de cada poda só existia no log do GitHub Actions (que exige
+    // login) — sem isso, "por que caiu de 16 pra 13?" não tinha resposta
+    // fora de reler o log manualmente. Agora vai no diagnóstico também.
+    const podadasResumo =
+      toDelete.length > 0 ? ` | Podadas: ${toDelete.map((d) => `${d.id} (${d.motivo})`).join("; ")}` : "";
+    const diagnostico = resumirFunnel(funnel, client.getBlockStats()) + podadasResumo;
     console.log("\nFunil da rodada:", JSON.stringify(funnel), JSON.stringify(client.getBlockStats()));
 
     await updateStatus({
