@@ -278,7 +278,10 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         neverEscalated(history);
 
       if (isOldAndCold) {
-        toDelete.push({ id: offer.id, motivo: "esfriada — mais de 21 dias, alta concorrência, nunca escalou" });
+        toDelete.push({
+          id: offer.id,
+          motivo: `esfriada — mais de ${PRUNE_MIN_AGE_DAYS} dias, alta concorrência, nunca escalou`,
+        });
         continue;
       }
 
