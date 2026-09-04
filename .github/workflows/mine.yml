@@ -53,4 +53,9 @@ jobs:
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           SCRAPER_API_SECRET: ${{ secrets.SCRAPER_API_SECRET }}
+          # Notificação por WhatsApp (CallMeBot) — opcionais: se não
+          # existirem, scraper/whatsapp.ts só pula o envio, não quebra a
+          # mineração. Pedido do Cayan em 04/09/2026.
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
         run: npm run mine

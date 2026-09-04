@@ -28,6 +28,7 @@ import {
   type UpsertOfferInput,
 } from "./apiClient";
 import type { HistoryPoint } from "@/lib/types";
+import { notifyWhatsApp } from "./whatsapp";
 
 function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[number]): UpsertOfferInput {
   return {
@@ -672,6 +673,37 @@ function printReport(report: RoundReport, offersTracked: number) {
   console.log("\n=======================================================================\n");
 }
 
+// Resumo curto pro WhatsApp — diferente do printReport (log completo, com
+// link de cada oferta), aqui é só o essencial pra ler numa notificação.
+function buildWhatsAppMessage(report: RoundReport, offersTracked: number): string {
+  const linhas = ["📡 Radar do Garimpo"];
+
+  linhas.push(`✨ ${report.novas.length} nova(s) oferta(s)`);
+  if (report.novas.length > 0) {
+    for (const n of report.novas.slice(0, 8)) {
+      linhas.push(`   • ${n.produto} (${n.anunciante})`);
+    }
+    if (report.novas.length > 8) linhas.push(`   ...e mais ${report.novas.length - 8}`);
+  }
+
+  if (report.podadas.length > 0) {
+    linhas.push(`🧹 ${report.podadas.length} removida(s):`);
+    for (const p of report.podadas.slice(0, 5)) {
+      linhas.push(`   • ${p.motivo}`);
+    }
+  }
+
+  if (report.escalations.length > 0) {
+    linhas.push(`🔥 Escalando:`);
+    for (const e of report.escalations.slice(0, 5)) {
+      linhas.push(`   • ${e.produto}: ${e.de} → ${e.para}`);
+    }
+  }
+
+  linhas.push(`📦 Catálogo: ${offersTracked} ofertas`);
+  return linhas.join("\n");
+}
+
 async function main() {
   console.log(`Radar do Garimpo — iniciando mineração em ${new Date().toISOString()}`);
   const client = getAdLibraryClient();
@@ -733,6 +765,7 @@ async function main() {
     });
 
     printReport(report, offersTracked);
+    await notifyWhatsApp(buildWhatsAppMessage(report, offersTracked));
   } finally {
     await client.close();
   }

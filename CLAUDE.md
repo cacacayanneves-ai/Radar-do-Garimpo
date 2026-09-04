@@ -153,6 +153,16 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 - **Prévia de branch na Vercel fica protegida por SSO**; pra o Cayan ver, tem
   que estar na `main`.
 
+## Notificação por WhatsApp
+
+Cada rodada manda um resumo pro WhatsApp pessoal do Cayan via **CallMeBot**
+(serviço comunitário gratuito, não é API oficial da Meta — ativado pelo
+telefone dele em 04/09/2026). `scraper/whatsapp.ts` lê `WHATSAPP_PHONE` e
+`WHATSAPP_APIKEY` dos secrets do GitHub Actions; se não existirem, só pula o
+envio e loga um aviso — nunca derruba a mineração. Mensagem montada em
+`buildWhatsAppMessage` (mine.ts): novas ofertas, podadas (com motivo),
+escaladas fortes, total do catálogo.
+
 ## Estado do painel
 
 Favoritar/descartar ficam no `localStorage` (o site não tem login, então é por
