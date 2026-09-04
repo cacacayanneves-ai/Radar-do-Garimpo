@@ -1,36 +1,52 @@
+/* ============================================================
+   TEMA: preto + verde ("radar/terminal")
+   ------------------------------------------------------------
+   Preto levemente azulado (#08090C) em vez de preto puro: preto
+   absoluto cansa a vista num painel denso e mata a profundidade das
+   sombras — esse tom lê como preto mas deixa os cards destacarem.
+
+   As três cores de dado continuam distintas entre si de propósito,
+   pra não perder a leitura instantânea da tabela:
+     verde-fósforo  = escalando / concorrência baixa (também é a marca)
+     lima           = concorrência média
+     coral          = esfriando / concorrência alta
+   ============================================================ */
 :root {
-  --bg: #f5f2ea;
-  --surface: #ffffff;
-  --surface-alt: #eee9db;
-  --border: #ddd5c0;
-  --ink: #1e1b15;
-  --ink-muted: #6b664f;
+  --bg: #08090c;
+  --surface: #0f1116;
+  --surface-alt: #161a21;
+  --border: #212633;
+  --ink: #e8f2ec;
+  --ink-muted: #7a8794;
 
-  --brass: #946a16;
-  --brass-ink: #5c4212;
-  --brass-bg: #f1e2b6;
-  --brass-grad-a: #c79a3b;
-  --brass-grad-b: #8c6317;
+  /* Acento da marca (lima) — usado em badge de nicho, sparkline,
+     pill ativa e faixa de concorrência média. */
+  --brass: #a8e85c;
+  --brass-ink: #c8f58a;
+  --brass-bg: #1b2a10;
+  /* Gradiente do logo: verde-fósforo, o tom mais "radar" da paleta. */
+  --brass-grad-a: #4dffaa;
+  --brass-grad-b: #0fa968;
 
-  --moss: #357048;
-  --moss-bg: #dfebe0;
+  --moss: #3dff9e;
+  --moss-bg: #0d2a1d;
 
-  --clay: #9b4327;
-  --clay-bg: #f2e0d5;
+  --clay: #ff7a5c;
+  --clay-bg: #2e1512;
 
-  --plum: #6e4a76;
-  --plum-bg: #ece1ec;
+  --plum: #c08cff;
+  --plum-bg: #1f1630;
 
-  --teal: #2a6b78;
-  --teal-bg: #deebeb;
+  --teal: #4dd8ff;
+  --teal-bg: #0a2431;
 
-  --glow-brass: rgba(198, 153, 58, 0.16);
-  --glow-teal: rgba(52, 120, 130, 0.12);
+  --glow-brass: rgba(61, 255, 158, 0.1);
+  --glow-teal: rgba(77, 216, 255, 0.07);
 
-  --shadow-xs: 0 1px 2px rgba(30, 27, 21, 0.05);
-  --shadow-sm: 0 2px 6px rgba(30, 27, 21, 0.06), 0 1px 2px rgba(30, 27, 21, 0.05);
-  --shadow-md: 0 8px 24px rgba(30, 27, 21, 0.08), 0 2px 6px rgba(30, 27, 21, 0.05);
-  --shadow-pop: 0 10px 30px rgba(140, 99, 23, 0.22);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 30px rgba(61, 255, 158, 0.25);
 
   --radius-lg: 18px;
   --radius-md: 13px;
@@ -41,76 +57,115 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* Versão clara da mesma paleta, pro botão de tema continuar funcionando. */
+:root[data-theme="light"] {
+  --bg: #f4f7f5;
+  --surface: #ffffff;
+  --surface-alt: #eaf0ec;
+  --border: #d3ded8;
+  --ink: #0f1a15;
+  --ink-muted: #5d6b64;
+
+  --brass: #4e7d16;
+  --brass-ink: #2f4d0c;
+  --brass-bg: #e2f2c9;
+  --brass-grad-a: #24c97c;
+  --brass-grad-b: #0b7f4d;
+
+  --moss: #12a05e;
+  --moss-bg: #d9f2e4;
+
+  --clay: #c2512f;
+  --clay-bg: #fbe3dc;
+
+  --plum: #6f4a9c;
+  --plum-bg: #ece2f7;
+
+  --teal: #10708f;
+  --teal-bg: #dcf0f7;
+
+  --glow-brass: rgba(36, 201, 124, 0.14);
+  --glow-teal: rgba(16, 112, 143, 0.1);
+
+  --shadow-xs: 0 1px 2px rgba(15, 26, 21, 0.05);
+  --shadow-sm: 0 2px 6px rgba(15, 26, 21, 0.06), 0 1px 2px rgba(15, 26, 21, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 26, 21, 0.08), 0 2px 6px rgba(15, 26, 21, 0.05);
+  --shadow-pop: 0 10px 30px rgba(11, 127, 77, 0.22);
+}
+
+/* O escuro já é o padrão (:root) neste tema — estes blocos existem só
+   pra garantir que "sistema no escuro" e o toggle manual caiam na mesma
+   paleta. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #131110;
-    --surface: #1c1916;
-    --surface-alt: #26221d;
-    --border: #3a3327;
-    --ink: #f3efe6;
-    --ink-muted: #aea48f;
+    --bg: #08090c;
+    --surface: #0f1116;
+    --surface-alt: #161a21;
+    --border: #212633;
+    --ink: #e8f2ec;
+    --ink-muted: #7a8794;
 
-    --brass: #e3b657;
-    --brass-ink: #f4d083;
-    --brass-bg: #3d3016;
-    --brass-grad-a: #f0c868;
-    --brass-grad-b: #9c7423;
+    --brass: #a8e85c;
+    --brass-ink: #c8f58a;
+    --brass-bg: #1b2a10;
+    --brass-grad-a: #4dffaa;
+    --brass-grad-b: #0fa968;
 
-    --moss: #7ed08d;
-    --moss-bg: #1f2e22;
+    --moss: #3dff9e;
+    --moss-bg: #0d2a1d;
 
-    --clay: #eb9c7f;
-    --clay-bg: #332019;
+    --clay: #ff7a5c;
+    --clay-bg: #2e1512;
 
-    --plum: #d3a9e1;
-    --plum-bg: #2b2130;
+    --plum: #c08cff;
+    --plum-bg: #1f1630;
 
-    --teal: #8fd8de;
-    --teal-bg: #18292b;
+    --teal: #4dd8ff;
+    --teal-bg: #0a2431;
 
-    --glow-brass: rgba(227, 182, 87, 0.1);
-    --glow-teal: rgba(143, 216, 222, 0.07);
+    --glow-brass: rgba(61, 255, 158, 0.1);
+    --glow-teal: rgba(77, 216, 255, 0.07);
 
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.45);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
-    --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-pop: 0 10px 30px rgba(61, 255, 158, 0.25);
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #131110;
-  --surface: #1c1916;
-  --surface-alt: #26221d;
-  --border: #3a3327;
-  --ink: #f3efe6;
-  --ink-muted: #aea48f;
+  --bg: #08090c;
+  --surface: #0f1116;
+  --surface-alt: #161a21;
+  --border: #212633;
+  --ink: #e8f2ec;
+  --ink-muted: #7a8794;
 
-  --brass: #e3b657;
-  --brass-ink: #f4d083;
-  --brass-bg: #3d3016;
-  --brass-grad-a: #f0c868;
-  --brass-grad-b: #9c7423;
+  --brass: #a8e85c;
+  --brass-ink: #c8f58a;
+  --brass-bg: #1b2a10;
+  --brass-grad-a: #4dffaa;
+  --brass-grad-b: #0fa968;
 
-  --moss: #7ed08d;
-  --moss-bg: #1f2e22;
+  --moss: #3dff9e;
+  --moss-bg: #0d2a1d;
 
-  --clay: #eb9c7f;
-  --clay-bg: #332019;
+  --clay: #ff7a5c;
+  --clay-bg: #2e1512;
 
-  --plum: #d3a9e1;
-  --plum-bg: #2b2130;
+  --plum: #c08cff;
+  --plum-bg: #1f1630;
 
-  --teal: #8fd8de;
-  --teal-bg: #18292b;
+  --teal: #4dd8ff;
+  --teal-bg: #0a2431;
 
-  --glow-brass: rgba(227, 182, 87, 0.1);
-  --glow-teal: rgba(143, 216, 222, 0.07);
+  --glow-brass: rgba(61, 255, 158, 0.1);
+  --glow-teal: rgba(77, 216, 255, 0.07);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 30px rgba(61, 255, 158, 0.25);
 }
 
 * {
@@ -125,13 +180,24 @@ body {
 
 body {
   background: var(--bg);
+  /* Brilhos radiais + uma grade bem sutil por cima: é a grade que dá a
+     leitura de "tela de radar/terminal" sem atrapalhar a leitura dos
+     dados (opacidade baixíssima de propósito). */
   background-image: radial-gradient(circle at 88% -6%, var(--glow-brass), transparent 42%),
-    radial-gradient(circle at -6% 30%, var(--glow-teal), transparent 45%);
+    radial-gradient(circle at -6% 30%, var(--glow-teal), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(61, 255, 158, 0.028) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(61, 255, 158, 0.028) 0 1px, transparent 1px 44px);
   background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+}
+
+/* A grade é do tema escuro; no claro ela suja o fundo. */
+:root[data-theme="light"] body {
+  background-image: radial-gradient(circle at 88% -6%, var(--glow-brass), transparent 42%),
+    radial-gradient(circle at -6% 30%, var(--glow-teal), transparent 45%);
 }
 
 .page {
@@ -168,9 +234,9 @@ body {
   background: linear-gradient(145deg, var(--brass-grad-a), var(--brass-grad-b));
   box-shadow: var(--shadow-pop);
   flex-shrink: 0;
-  /* A marca do radar é desenhada com currentColor — sobre o gradiente
-     âmbar, o tom escuro da tipografia dá o contraste certo. */
-  color: #1e1b15;
+  /* A marca do radar é desenhada com currentColor — no fundo do gradiente
+     verde, preto dá o contraste certo. */
+  color: #08090c;
 }
 
 .radar-sweep {
