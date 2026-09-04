@@ -44,18 +44,20 @@ export default function FilterTabs({
         })}
       </div>
 
-      <div className="legend">
+      {/* Sem o rótulo, os três números soltos não diziam a que se referiam. */}
+      <div className="legend" title="Anúncios ativos no nicho — quanto menos, melhor">
+        <span className="legend-titulo">Concorrência do nicho:</span>
         <span className="legend-item">
           <span className="legend-dot" style={{ background: "var(--moss)" }} />
-          ≤350
+          ≤350 baixa
         </span>
         <span className="legend-item">
           <span className="legend-dot" style={{ background: "var(--brass)" }} />
-          ≤900
+          ≤900 média
         </span>
         <span className="legend-item">
           <span className="legend-dot" style={{ background: "var(--clay)" }} />
-          &gt;900
+          &gt;900 alta
         </span>
       </div>
     </div>

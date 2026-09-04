@@ -474,9 +474,26 @@ body {
 .legend {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   font-size: 12px;
   color: var(--ink-muted);
+}
+
+.legend-titulo {
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+/* No celular a legenda quebra pra linha de baixo (o .controls é
+   flex-wrap); sem isso ela encostava na esquerda, diferente do desktop,
+   onde fica na direita. */
+@media (max-width: 720px) {
+  .legend {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .legend-item {
