@@ -161,20 +161,22 @@ export const KEYWORDS: string[] = [
   "kit professor digital",
 ];
 
-export function dayOfYear(date: Date = new Date()): number {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
-  return Math.floor(diff / 86_400_000);
+// Normaliza um cursor vindo do banco (pode estar fora da faixa se a lista
+// encolher) para um índice válido da lista.
+export function normalizarCursor(cursor: number): number {
+  if (!Number.isFinite(cursor)) return 0;
+  const n = Math.trunc(cursor) % KEYWORDS.length;
+  return n < 0 ? n + KEYWORDS.length : n;
 }
 
-// Retorna as próximas `count` keywords, em rotação circular, a partir do
-// índice determinado pelo dia do ano — garante cobertura de todas ao longo
-// do tempo sem repetir sempre as mesmas primeiras da lista.
-export function keywordsForToday(count = 7, date: Date = new Date()): string[] {
-  const start = dayOfYear(date) % KEYWORDS.length;
-  const result: string[] = [];
-  for (let i = 0; i < count; i++) {
-    result.push(KEYWORDS[(start + i) % KEYWORDS.length]);
-  }
-  return result;
+// Lista inteira reordenada pra começar em `cursor`, em rotação circular. A
+// rodada varre a partir daí e para quando bate o alvo de ofertas novas ou o
+// teto de tempo — o índice onde parou vira o cursor da próxima rodada, então
+// nenhuma keyword é varrida duas vezes seguidas e, ao longo dos dias, a lista
+// toda é coberta. (Antes o ponto de partida era o dia do ano: as duas rodadas
+// do mesmo dia usavam as MESMAS keywords e dois dias seguidos repetiam quase
+// todas — daí o volume de duplicadas e o catálogo parado.)
+export function keywordsFromCursor(cursor: number): string[] {
+  const start = normalizarCursor(cursor);
+  return KEYWORDS.map((_, i) => KEYWORDS[(start + i) % KEYWORDS.length]);
 }

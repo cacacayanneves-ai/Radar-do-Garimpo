@@ -72,6 +72,13 @@ model MetaStatus {
   // GitHub Actions (que exige login pra ver).
   diagnostico String @default("")
 
+  // Posição na lista de keywords onde a PRÓXIMA rodada começa a varrer. Antes
+  // o ponto de partida era o dia do ano, o que fazia as duas rodadas do mesmo
+  // dia varrerem exatamente as mesmas keywords (a segunda só reencontrava o
+  // que a primeira já tinha pego) e dois dias seguidos repetirem quase tudo.
+  // Com o cursor, cada rodada continua de onde a anterior parou.
+  keywordCursor Int @default(0)
+
   updatedAt DateTime @updatedAt
 
   @@map("meta_status")

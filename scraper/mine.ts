@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { getAdLibraryClient, randomDelay, type AdDetails } from "./adLibraryClient";
-import { keywordsForToday } from "./keywords";
+import { KEYWORDS, keywordsFromCursor, normalizarCursor } from "./keywords";
 import {
   extractPriceFromPage,
   extractTicket,
@@ -18,7 +18,14 @@ import {
   ticketInRange,
   verifyLandingPage,
 } from "./heuristics";
-import { deleteOffers, fetchCurrentOffers, updateStatus, upsertOffers, type UpsertOfferInput } from "./apiClient";
+import {
+  deleteOffers,
+  fetchCurrentOffers,
+  fetchStatus,
+  updateStatus,
+  upsertOffers,
+  type UpsertOfferInput,
+} from "./apiClient";
 import type { HistoryPoint } from "@/lib/types";
 
 function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[number]): UpsertOfferInput {
@@ -47,12 +54,10 @@ const MAX_HISTORY_POINTS = 45;
 const REVALIDATE_BATCH_SIZE = 12;
 const REVALIDATE_BATCH_PAUSE_MS = 4000;
 const TARGET_NEW_OFFERS = 30;
-// Quantas keywords da rotação são varridas por rodada. Medido na prática:
-// 20 keywords rendem ~7 ofertas novas e a rodada acaba em 26 min — ou
-// seja, ela termina por FALTA DE KEYWORD, não por tempo (o teto é 70 min).
-// Com 40, usa a folga e chega mais perto do alvo de 30 sem afrouxar
-// nenhum critério de qualidade. O laço para sozinho ao bater o alvo.
-const KEYWORDS_PER_ROUND = 40;
+// Não existe mais cota fixa de keywords por rodada: a rodada varre a lista a
+// partir do cursor até bater o alvo de ofertas novas, estourar o teto de
+// tempo, ou completar uma volta inteira (o que vier primeiro). Quem manda no
+// tamanho da rodada é o relógio, não um número arbitrário de keywords.
 const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
 const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
@@ -309,9 +314,12 @@ async function mineNewOffers(
   trackedLibraryIds: Set<string>,
   trackedProductKeys: Set<string>,
   report: RoundReport,
-  funnel: FunnelStats
+  funnel: FunnelStats,
+  cursorInicial: number
 ) {
-  const keywords = keywordsForToday(KEYWORDS_PER_ROUND);
+  const keywords = keywordsFromCursor(cursorInicial);
+  // Quantas keywords a rodada realmente consumiu — vira o cursor da próxima.
+  let consumidas = 0;
   const nicheCompetitionCache = new Map<string, number | null>();
   const newOffers: UpsertOfferInput[] = [];
   // Dedup barato, antes de gastar requisição: vários anúncios da mesma
@@ -322,6 +330,7 @@ async function mineNewOffers(
 
   for (const keyword of keywords) {
     if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
+    consumidas++;
 
     // Mede a concorrência do nicho ANTES de gastar tempo avaliando
     // candidatos — nicho saturado (mercado grande/dominado por players
@@ -513,7 +522,13 @@ async function mineNewOffers(
     }
   }
 
-  return newOffers;
+  console.log(
+    `Keywords varridas nesta rodada: ${consumidas} (de ${keywords[0]} em diante). Próxima rodada começa em "${
+      KEYWORDS[normalizarCursor(cursorInicial + consumidas)]
+    }".`
+  );
+
+  return { newOffers, cursorFinal: normalizarCursor(cursorInicial + consumidas) };
 }
 
 function printReport(report: RoundReport, offersTracked: number) {
@@ -550,6 +565,11 @@ async function main() {
 
   const funnel = novoFunnel();
 
+  // Onde a rodada anterior parou de varrer a lista de keywords. Se o status
+  // ainda não existir (primeira rodada) ou a leitura falhar, começa do zero.
+  const cursorInicial = normalizarCursor((await fetchStatus())?.keywordCursor ?? 0);
+  console.log(`Cursor de keywords: começando em ${cursorInicial} ("${KEYWORDS[cursorInicial]}").`);
+
   try {
     const { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report } = await revalidateExisting(client);
 
@@ -557,7 +577,14 @@ async function main() {
       await upsertOffers(toUpsert);
     }
 
-    const newOffers = await mineNewOffers(client, trackedLibraryIds, trackedProductKeys, report, funnel);
+    const { newOffers, cursorFinal } = await mineNewOffers(
+      client,
+      trackedLibraryIds,
+      trackedProductKeys,
+      report,
+      funnel,
+      cursorInicial
+    );
     if (newOffers.length > 0) {
       await upsertOffers(newOffers);
     }
@@ -585,6 +612,7 @@ async function main() {
       podadasHoje: toDelete.length,
       escalations: report.escalations.map((e) => e.id),
       diagnostico, // só pra debug via GET /api/status, não aparece no painel.
+      keywordCursor: cursorFinal, // próxima rodada continua daqui.
     });
 
     printReport(report, offersTracked);

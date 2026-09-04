@@ -67,6 +67,7 @@ export async function updateStatus(status: {
   podadasHoje: number;
   escalations: string[];
   diagnostico?: string;
+  keywordCursor?: number;
 }) {
   const res = await fetch(`${SITE_URL}/api/status/update`, {
     method: "POST",
@@ -77,6 +78,20 @@ export async function updateStatus(status: {
     throw new Error(`Falha ao atualizar status (${res.status}): ${await res.text()}`);
   }
   return res.json();
+}
+
+// Estado da última rodada. Hoje serve só pra ler o keywordCursor (onde a
+// rodada anterior parou de varrer a lista). Falha aqui não pode derrubar a
+// mineração: sem status, a rodada só recomeça do início da lista.
+export async function fetchStatus(): Promise<{ keywordCursor?: number } | null> {
+  try {
+    const res = await fetch(`${SITE_URL}/api/status`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn("Não consegui ler o status (seguindo com cursor 0):", err);
+    return null;
+  }
 }
 
 export async function fetchCurrentOffers(): Promise<Offer[]> {
