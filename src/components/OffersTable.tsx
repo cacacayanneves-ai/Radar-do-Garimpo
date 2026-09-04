@@ -1,4 +1,4 @@
-import type { Offer, SortKey } from "@/lib/types";
+import type { Offer, SortKey, SortState } from "@/lib/types";
 import { computeDelta, diasNoAr } from "@/lib/compute";
 import Sparkline from "./Sparkline";
 import DeltaBadge from "./DeltaBadge";
@@ -12,14 +12,14 @@ import { IconEstrela, IconLixeira, IconRestaurar } from "./Icons";
 // "Δ desde última leitura" sozinho empurrava a tabela pra fora da tela. O
 // significado completo fica no title (tooltip).
 const SORTABLE: { key: SortKey; label: string; title: string }[] = [
-  { key: "collation", label: "Sinal", title: "Quantos criativos o anunciante roda com esse mesmo texto" },
-  { key: "delta", label: "Δ", title: "Variação de criativos desde a última leitura" },
-  { key: "concorrencia", label: "Concorrência", title: "Quantos anúncios ativos existem no nicho" },
+  { key: "collation", label: "Sinal", title: "Quantos criativos o anunciante roda com esse mesmo texto — clique pra ordenar, clique de novo pra inverter" },
+  { key: "delta", label: "Δ", title: "Variação de criativos desde a última leitura — clique pra ordenar, clique de novo pra inverter" },
+  { key: "concorrencia", label: "Concorrência", title: "Quantos anúncios ativos existem no nicho — clique pra ordenar, clique de novo pra inverter" },
 ];
 
 export default function OffersTable({
   offers,
-  sortKey,
+  sort,
   onSort,
   isFavorita,
   isDescartada,
@@ -27,13 +27,16 @@ export default function OffersTable({
   onToggleDescartada,
 }: {
   offers: Offer[];
-  sortKey: SortKey;
+  sort: SortState;
   onSort: (key: SortKey) => void;
   isFavorita: (id: string) => boolean;
   isDescartada: (id: string) => boolean;
   onToggleFavorita: (id: string) => void;
   onToggleDescartada: (id: string) => void;
 }) {
+  // ▲ = crescente, ▼ = decrescente. Só aparece na coluna ativa.
+  const seta = (key: SortKey) => (sort.key !== key ? "" : sort.dir === "asc" ? "▲" : "▼");
+
   if (offers.length === 0) {
     return (
       <div className="table-wrap">
@@ -52,10 +55,17 @@ export default function OffersTable({
             {SORTABLE.map((s) => (
               <th key={s.key} className="sortable" onClick={() => onSort(s.key)} title={s.title}>
                 {s.label}
-                <span className="arrow">{sortKey === s.key ? "▾" : ""}</span>
+                <span className="arrow">{seta(s.key)}</span>
               </th>
             ))}
-            <th>No ar</th>
+            <th
+              className="sortable"
+              onClick={() => onSort("diasNoAr")}
+              title="Há quantos dias o anunciante veicula esse anúncio — clique pra ordenar, clique de novo pra inverter"
+            >
+              No ar
+              <span className="arrow">{seta("diasNoAr")}</span>
+            </th>
             <th>Tags</th>
             <th>Ações</th>
           </tr>

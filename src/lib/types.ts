@@ -50,4 +50,11 @@ export type FilterKey =
   | "favoritas"
   | "descartadas";
 
-export type SortKey = "opportunity" | "collation" | "delta" | "concorrencia";
+export type SortKey = "opportunity" | "collation" | "delta" | "concorrencia" | "diasNoAr";
+
+export type SortDir = "asc" | "desc";
+
+export interface SortState {
+  key: SortKey;
+  dir: SortDir;
+}
