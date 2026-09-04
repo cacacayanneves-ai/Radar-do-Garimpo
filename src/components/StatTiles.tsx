@@ -1,5 +1,5 @@
 import type { Offer } from "@/lib/types";
-import { computeDelta, isNewThisWeek, parseTicketValue } from "@/lib/compute";
+import { computeDelta, isNewThisWeek } from "@/lib/compute";
 
 export default function StatTiles({ offers }: { offers: Offer[] }) {
   const total = offers.length;
@@ -7,8 +7,15 @@ export default function StatTiles({ offers }: { offers: Offer[] }) {
   const aguardando2aLeitura = offers.filter((o) => (o.history || []).length < 2).length;
   const novas = offers.filter(isNewThisWeek).length;
 
-  const tickets = offers.map((o) => parseTicketValue(o.ticket)).filter((v): v is number => v !== null);
-  const ticketMedio = tickets.length > 0 ? tickets.reduce((a, b) => a + b, 0) / tickets.length : null;
+  // Maior escalada do dia: quem deu o maior salto de criativos desde a
+  // última leitura — o apontador mais direto pra "olha essa aqui primeiro".
+  let maiorEscalada: { offer: Offer; delta: number } | null = null;
+  for (const o of offers) {
+    const delta = computeDelta(o);
+    if (delta !== null && delta > 0 && (maiorEscalada === null || delta > maiorEscalada.delta)) {
+      maiorEscalada = { offer: o, delta };
+    }
+  }
 
   return (
     <div className="stats">
@@ -33,16 +40,12 @@ export default function StatTiles({ offers }: { offers: Offer[] }) {
         <div className="tile-label">Descobertas na semana</div>
       </div>
       <div className="tile">
-        <div className="tile-icon">💰</div>
-        <div className="tile-value">
-          {ticketMedio != null ? `R$ ${ticketMedio.toFixed(2).replace(".", ",")}` : "n/d"}
+        <div className="tile-icon">🔥</div>
+        <div className="tile-value">{maiorEscalada ? `+${maiorEscalada.delta}` : "—"}</div>
+        <div className="tile-label">Maior escalada do dia</div>
+        <div className="tile-note">
+          {maiorEscalada ? maiorEscalada.offer.produto.slice(0, 40) : "nenhuma escalada hoje"}
         </div>
-        <div className="tile-label">Ticket médio</div>
-        {tickets.length > 0 && tickets.length < total ? (
-          <div className="tile-note">
-            {tickets.length} de {total} com preço
-          </div>
-        ) : null}
       </div>
     </div>
   );
