@@ -64,7 +64,12 @@ const TARGET_NEW_OFFERS = 30;
 // frequentes — ver .github/workflows/mine.yml) em vez de tudo de uma vez.
 const KEYWORDS_PER_ROUND = 30;
 const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
-const PRUNE_MIN_AGE_DAYS = 21;
+// Pedido do Cayan em 04/09/2026: dar pelo menos 30 dias pra oferta provar
+// que escala antes de podar por "esfriada" — 21 dias estava podando cedo
+// demais. Só vale pra esse critério (esfriada); saiu do ar / virou WhatsApp
+// / página degradou / preço fora da faixa continuam podando na hora, porque
+// aí a oferta já não é mais válida, não é questão de tempo.
+const PRUNE_MIN_AGE_DAYS = 30;
 const PRUNE_MIN_CONCORRENCIA = 1200;
 const PRUNE_LOOKBACK_POINTS = 10;
 
