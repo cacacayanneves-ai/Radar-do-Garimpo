@@ -38,6 +38,7 @@ function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[num
     riscoPolitica: offer.riscoPolitica,
     primeiraDeteccao: offer.primeiraDeteccao,
     descoberta: false,
+    veiculacaoIniciada: offer.veiculacaoIniciada,
     history: offer.history,
   };
 }
@@ -240,15 +241,54 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         continue;
       }
 
+      // Corrige retroativamente nome/preço/data de ofertas já rastreadas, e
+      // detecta degradação — a página pode ter virado formulário de lead,
+      // loja física, quiz ou saído da faixa de preço DEPOIS de ter sido
+      // aceita. Só roda pra quem sobreviveu até aqui (não desperdiça
+      // requisição em quem já ia ser podado por outro motivo).
+      let produtoAtualizado = offer.produto;
+      let ticketAtualizado = offer.ticket;
+      let veiculacaoIniciadaAtualizada = offer.veiculacaoIniciada;
+
+      if (details.startDateUnix != null) {
+        veiculacaoIniciadaAtualizada = new Date(details.startDateUnix * 1000).toISOString();
+      }
+
+      const landing = await client.fetchLandingPage(details.link);
+      await randomDelay(600, 1200);
+
+      if (landing) {
+        const verdict = verifyLandingPage(landing.text, details.link);
+        if (!verdict.ok) {
+          toDelete.push({ id: offer.id, motivo: `página de venda degradou (${verdict.reason})` });
+          continue;
+        }
+
+        const precoAtual = extractPriceFromPage(landing.text);
+        if (precoAtual != null) {
+          if (!precoNaFaixa(precoAtual)) {
+            toDelete.push({ id: offer.id, motivo: `preço saiu da faixa (agora R$ ${precoAtual})` });
+            continue;
+          }
+          ticketAtualizado = formatPreco(precoAtual);
+        }
+
+        const nomeReal = produtoFromTitle(landing.title);
+        if (nomeReal) produtoAtualizado = nomeReal;
+      }
+
       toUpsert.push({
         ...toUpsertInput(offer),
         vendaUrl: details.link,
         collation: collationHoje ?? offer.collation,
+        produto: produtoAtualizado,
+        ticket: ticketAtualizado,
+        veiculacaoIniciada: veiculacaoIniciadaAtualizada,
         history,
       });
       const revalidatedPageId = details.pageId ?? offer.pageId;
       trackedProductKeys.add(productUrlKey(revalidatedPageId, details.link));
-      trackedProductKeys.add(productTextKey(revalidatedPageId, offer.produto));
+      trackedProductKeys.add(productTextKey(revalidatedPageId, produtoAtualizado));
     }
 
     if (i + REVALIDATE_BATCH_SIZE < current.length) {
@@ -447,6 +487,7 @@ async function mineNewOffers(
         riscoPolitica: guessRiscoPolitica(combinedText),
         primeiraDeteccao: new Date().toISOString(),
         descoberta: true,
+        veiculacaoIniciada: details.startDateUnix != null ? new Date(details.startDateUnix * 1000).toISOString() : null,
         history: [{ d: todayIso(), c: collationFinal }],
       };
 

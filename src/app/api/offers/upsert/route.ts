@@ -23,6 +23,7 @@ interface UpsertPayload {
   riscoPolitica?: boolean;
   primeiraDeteccao: string;
   descoberta?: boolean;
+  veiculacaoIniciada?: string | null;
   history?: HistoryPoint[];
 }
 
@@ -68,6 +69,7 @@ async function upsertOne(o: UpsertPayload) {
       riscoPolitica: o.riscoPolitica ?? false,
       primeiraDeteccao: new Date(o.primeiraDeteccao),
       descoberta: o.descoberta ?? true,
+      veiculacaoIniciada: o.veiculacaoIniciada ? new Date(o.veiculacaoIniciada) : null,
       history: history as unknown as Prisma.InputJsonValue,
     },
     update: {
@@ -85,6 +87,9 @@ async function upsertOne(o: UpsertPayload) {
       internacional: o.internacional,
       riscoPolitica: o.riscoPolitica ?? false,
       descoberta: o.descoberta ?? false,
+      // Só sobrescreve se veio um valor — evita apagar uma data já
+      // gravada quando uma rodada não conseguiu reler a página.
+      veiculacaoIniciada: o.veiculacaoIniciada ? new Date(o.veiculacaoIniciada) : undefined,
       history: history as unknown as Prisma.InputJsonValue,
     },
   });

@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   title: "Radar do Garimpo",
   description:
     "Monitoramento de ofertas digitais low ticket escalando na Biblioteca de Anúncios da Meta.",
+  // Painel de pesquisa de concorrência — não deve aparecer em busca do
+  // Google (a URL é pública pra quem tem o link, não pra indexação).
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

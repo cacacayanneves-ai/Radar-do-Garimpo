@@ -51,3 +51,23 @@ export function competitionBand(concorrencia: number | null): "moss" | "brass" |
   if (n <= 900) return "brass";
   return "clay";
 }
+
+// Extrai o valor numérico de um ticket tipo "R$ 27,90" — usado pro tile de
+// ticket médio. Retorna null pra "n/d"/vazio/formato não reconhecido.
+export function parseTicketValue(ticket: string | null): number | null {
+  if (!ticket) return null;
+  const m = ticket.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+  if (!m) return null;
+  const valor = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+  return Number.isNaN(valor) ? null : valor;
+}
+
+// Dias desde que o anúncio começou a rodar de verdade no Facebook
+// (veiculacaoIniciada) — cai pra primeiraDeteccao (quando o robô achou)
+// quando a Biblioteca não informou a data real.
+export function diasNoAr(o: Offer): number | null {
+  const base = o.veiculacaoIniciada ?? o.primeiraDeteccao;
+  if (!base) return null;
+  const dias = (Date.now() - new Date(base).getTime()) / 86400000;
+  return Math.max(0, Math.floor(dias));
+}

@@ -38,6 +38,12 @@ model Offer {
   primeiraDeteccao DateTime
   descoberta       Boolean  @default(true)
 
+  // Quando o anúncio começou a rodar de verdade no Facebook ("Veiculação
+  // iniciada em", campo "start_date" da Biblioteca) — diferente de
+  // primeiraDeteccao, que é quando O ROBÔ achou o anúncio (pode ser bem
+  // depois do anúncio já estar rodando). Usado pra mostrar "no ar há Xd".
+  veiculacaoIniciada DateTime?
+
   // Array de { d: "AAAA-MM-DD", c: number }, mantendo só os últimos 45 pontos.
   history Json @default("[]")
 

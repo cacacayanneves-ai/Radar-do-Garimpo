@@ -24,6 +24,7 @@ export interface Offer {
   riscoPolitica: boolean;
   primeiraDeteccao: string; // ISO date
   descoberta: boolean;
+  veiculacaoIniciada: string | null; // ISO date — quando o anúncio começou a rodar no Facebook
   history: HistoryPoint[];
 }
 
@@ -40,6 +41,13 @@ export interface MetaStatus {
   diagnostico: string;
 }
 
-export type FilterKey = "top10" | "todas" | "escalando" | "esfriando" | "novas";
+export type FilterKey =
+  | "top10"
+  | "todas"
+  | "escalando"
+  | "esfriando"
+  | "novas"
+  | "favoritas"
+  | "descartadas";
 
 export type SortKey = "opportunity" | "collation" | "delta" | "concorrencia";

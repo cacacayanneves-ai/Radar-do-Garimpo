@@ -19,6 +19,7 @@ export function serializeOffer(o: PrismaOffer): Offer {
     riscoPolitica: o.riscoPolitica,
     primeiraDeteccao: o.primeiraDeteccao.toISOString(),
     descoberta: o.descoberta,
+    veiculacaoIniciada: o.veiculacaoIniciada ? o.veiculacaoIniciada.toISOString() : null,
     history: (o.history as unknown as HistoryPoint[]) ?? [],
   };
 }

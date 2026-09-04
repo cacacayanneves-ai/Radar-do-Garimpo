@@ -30,6 +30,7 @@ export interface UpsertOfferInput {
   riscoPolitica?: boolean;
   primeiraDeteccao: string;
   descoberta?: boolean;
+  veiculacaoIniciada?: string | null;
   history?: HistoryPoint[];
 }
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FilterKey, MetaStatus, Offer, SortKey } from "@/lib/types";
 import { computeDelta, isNewThisWeek, opportunity, topScore } from "@/lib/compute";
+import { useLocalOfferSet } from "@/lib/useLocalOfferSet";
 import Header from "./Header";
 import StatTiles from "./StatTiles";
 import FilterTabs from "./FilterTabs";
@@ -33,6 +34,9 @@ export default function LiveDashboard({
   const [sortKey, setSortKey] = useState<SortKey>("opportunity");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const favoritos = useLocalOfferSet("radar-favoritos");
+  const descartados = useLocalOfferSet("radar-descartados");
+
   useEffect(() => {
     async function poll() {
       try {
@@ -53,22 +57,34 @@ export default function LiveDashboard({
     };
   }, []);
 
+  // Descartada some de toda visão, exceto da própria aba "Descartadas" —
+  // é assim que a lista deixa de mostrar sempre as mesmas ofertas que você
+  // já revisou.
+  const visiveis = useMemo(
+    () => (filter === "descartadas" ? offers : offers.filter((o) => !descartados.has(o.id))),
+    [offers, descartados, filter]
+  );
+
   const filtered = useMemo(() => {
     switch (filter) {
       case "top10":
         // As 10 de maior nota (ver topScore em lib/compute). A ordenação da
         // coluna escolhida continua valendo, mas só dentro dessas 10.
-        return [...offers].sort((a, b) => topScore(b) - topScore(a)).slice(0, 10);
+        return [...visiveis].sort((a, b) => topScore(b) - topScore(a)).slice(0, 10);
       case "escalando":
-        return offers.filter((o) => (computeDelta(o) ?? 0) > 0);
+        return visiveis.filter((o) => (computeDelta(o) ?? 0) > 0);
       case "esfriando":
-        return offers.filter((o) => (computeDelta(o) ?? 0) < 0);
+        return visiveis.filter((o) => (computeDelta(o) ?? 0) < 0);
       case "novas":
-        return offers.filter(isNewThisWeek);
+        return visiveis.filter(isNewThisWeek);
+      case "favoritas":
+        return visiveis.filter((o) => favoritos.has(o.id));
+      case "descartadas":
+        return visiveis.filter((o) => descartados.has(o.id));
       default:
-        return offers;
+        return visiveis;
     }
-  }, [offers, filter]);
+  }, [visiveis, filter, favoritos, descartados]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -92,12 +108,29 @@ export default function LiveDashboard({
     setSortKey((current) => (current === key ? "opportunity" : key));
   }
 
+  // Os tiles do topo (e o "N ofertas sob vigilância" do header) refletem só
+  // o que está ativamente em radar — sem as descartadas.
+  const ofertasAtivas = useMemo(() => offers.filter((o) => !descartados.has(o.id)), [offers, descartados]);
+
   return (
     <div className="page">
-      <Header offersCount={offers.length} />
-      <StatTiles offers={offers} />
-      <FilterTabs active={filter} onChange={setFilter} />
-      <OffersTable offers={sorted} sortKey={sortKey} onSort={handleSort} />
+      <Header offersCount={ofertasAtivas.length} />
+      <StatTiles offers={ofertasAtivas} />
+      <FilterTabs
+        active={filter}
+        onChange={setFilter}
+        favoritasCount={favoritos.ids.size}
+        descartadasCount={descartados.ids.size}
+      />
+      <OffersTable
+        offers={sorted}
+        sortKey={sortKey}
+        onSort={handleSort}
+        isFavorita={favoritos.has}
+        isDescartada={descartados.has}
+        onToggleFavorita={favoritos.toggle}
+        onToggleDescartada={descartados.toggle}
+      />
       <div className="footer">Última mineração: {formatLastRun(status?.lastRun ?? null)}</div>
     </div>
   );

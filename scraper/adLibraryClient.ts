@@ -19,6 +19,10 @@ export interface AdDetails {
   pageId: string | null;
   pageName: string | null;
   adText: string;
+  // "start_date" da Biblioteca (timestamp Unix, segundos) — quando o
+  // anúncio começou a rodar de verdade ("Veiculação iniciada em"). Null
+  // quando o campo não vem na página.
+  startDateUnix: number | null;
 }
 
 export interface SearchResultCard {
@@ -269,6 +273,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
         pageId: nearestField(html, idIdx, "page_id"),
         pageName: nearestField(html, idIdx, "page_name"),
         adText: bodyText,
+        startDateUnix: nearestNumberField(html, idIdx, "start_date"),
       };
     } catch {
       this.blockStats.navFailures++;

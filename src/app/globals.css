@@ -289,6 +289,13 @@ body {
   color: var(--plum);
 }
 
+.tile-note {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  opacity: 0.8;
+}
+
 /* ---------- Controls ---------- */
 
 .controls {
@@ -302,6 +309,7 @@ body {
 
 .pill-group {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--surface-alt);
   border: 1px solid var(--border);
@@ -410,6 +418,90 @@ tbody td {
   padding: 14px 16px;
   vertical-align: middle;
   font-size: 13.5px;
+}
+
+/* ---------- Tabela em cards no mobile ---------- */
+/* Abaixo de 720px a tabela vira uma lista de cards empilhados — a versão
+   em linha/coluna com scroll horizontal é ruim de usar no celular. Cada
+   <td> ganha um rótulo (data-label, definido no JSX) à esquerda do valor;
+   as células que são mais um bloco de conteúdo do que um par rótulo/valor
+   (Oferta, Concorrência, Tags) ficam em largura cheia sem esse rótulo
+   inline. */
+@media (max-width: 720px) {
+  .table-wrap {
+    overflow-x: visible;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+  }
+
+  tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px dashed var(--border);
+    text-align: right;
+  }
+
+  tbody td:last-child {
+    border-bottom: none;
+  }
+
+  tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-muted);
+    text-align: left;
+  }
+
+  tbody td[data-label="Oferta"],
+  tbody td[data-label="Concorrência do nicho"],
+  tbody td[data-label="Tags"] {
+    display: block;
+    text-align: left;
+  }
+
+  tbody td[data-label="Oferta"]::before,
+  tbody td[data-label="Concorrência do nicho"]::before,
+  tbody td[data-label="Tags"]::before {
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .competition-cell {
+    min-width: 0;
+  }
+
+  .tags-cell {
+    max-width: none;
+  }
 }
 
 .row-up {
@@ -617,6 +709,26 @@ tbody td {
 .icon-btn:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-xs);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  cursor: pointer;
+  padding: 0;
+}
+
+.action-btn.active-fav {
+  background: var(--brass-bg);
+  border-color: var(--brass);
+}
+
+.action-btn.active-discard {
+  background: var(--clay-bg);
+  border-color: var(--clay);
 }
 
 .empty-state {
