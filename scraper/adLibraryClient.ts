@@ -48,17 +48,57 @@ function randomDelay(minMs: number, maxMs: number) {
   return sleep(minMs + Math.random() * (maxMs - minMs));
 }
 
-function g(text: string, key: string): string | null {
-  const m = text.match(new RegExp(`"${key}":"(.*?)"`));
-  return m ? m[1].replace(/\\\//g, "/") : null;
-}
-
 function unescapeJsonString(s: string): string {
   try {
     return JSON.parse(`"${s}"`);
   } catch {
     return s;
   }
+}
+
+function g(text: string, key: string): string | null {
+  const m = text.match(new RegExp(`"${key}":"(.*?)"`));
+  return m ? unescapeJsonString(m[1]) : null;
+}
+
+// A página de detalhe de um anúncio (`?id=...`) sempre retorna HTTP 200 com
+// o shell completo do app — inclusive quando o id não existe, caso em que a
+// página mostra sugestões/anúncios de exemplo que não têm nada a ver com o
+// id pedido, mas cujos campos ("page_name", "collation_count" etc.) ainda
+// aparecem em algum lugar do HTML. Por isso não dá pra simplesmente pegar o
+// primeiro campo "X" da página inteira: é preciso ancorar a busca na
+// ocorrência de "ad_archive_id":"<id>" e pegar, para cada campo, a
+// ocorrência MAIS PRÓXIMA dessa âncora (testado contra a Biblioteca de
+// Anúncios real — o campo relevante pode ficar a milhares de caracteres de
+// distância, então uma janela de tamanho fixo não é confiável).
+function nearestField(html: string, anchorIdx: number, key: string): string | null {
+  const re = new RegExp(`"${key}":"(.*?)"`, "g");
+  let best: string | null = null;
+  let bestDist = Infinity;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const dist = Math.abs(m.index - anchorIdx);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = m[1];
+    }
+  }
+  return best !== null ? unescapeJsonString(best) : null;
+}
+
+function nearestNumberField(html: string, anchorIdx: number, key: string): number | null {
+  const re = new RegExp(`"${key}":(\\d+)`, "g");
+  let best: number | null = null;
+  let bestDist = Infinity;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const dist = Math.abs(m.index - anchorIdx);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = parseInt(m[1], 10);
+    }
+  }
+  return best;
 }
 
 // A Biblioteca de Anúncios embute o payload de cada card como JSON para
@@ -103,20 +143,27 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       const html = await page.content();
 
-      const hasName = /"page_name"/.test(html);
-      if (!hasName) {
+      // A página da Biblioteca de Anúncios SEMPRE retorna HTTP 200 com o
+      // shell completo do app, mesmo pra um `id` inexistente — inclusive com
+      // "page_name"/"collation_count" de anúncios de sugestão que não têm
+      // nada a ver com o id pedido. Por isso confirmamos que o `id` pedido
+      // está presente como "ad_archive_id" no payload (só assim sabemos que
+      // o anúncio existe) e então lemos cada campo pela ocorrência mais
+      // próxima dessa âncora — ver `nearestField`/`nearestNumberField`.
+      const idMarker = `"ad_archive_id":"${libraryId}"`;
+      const idIdx = html.indexOf(idMarker);
+      if (idIdx === -1) {
         // Anúncio saiu do ar / id inválido.
         return null;
       }
 
-      const collationMatch = html.match(/"collation_count":(\d+)/);
       const bodyText = await page.innerText("body").catch(() => "");
 
       return {
-        link: g(html, "link_url"),
-        collation: collationMatch ? parseInt(collationMatch[1], 10) : null,
-        pageId: g(html, "page_id"),
-        pageName: g(html, "page_name"),
+        link: nearestField(html, idIdx, "link_url"),
+        collation: nearestNumberField(html, idIdx, "collation_count"),
+        pageId: nearestField(html, idIdx, "page_id"),
+        pageName: nearestField(html, idIdx, "page_name"),
         adText: bodyText,
       };
     } catch {

@@ -134,8 +134,10 @@ export function isGenericInstagramProfile(url: string | null): boolean {
     const u = new URL(url);
     if (!u.hostname.includes("instagram.com")) return false;
     const path = u.pathname.replace(/^\/|\/$/g, "");
-    // Perfil genérico: só o @usuário, sem indicação de produto/loja/link externo.
-    return path.length > 0 && !path.includes("/");
+    // Domínio raiz (sem @usuário nenhum) ou só o @usuário, sem indicação de
+    // produto/loja/link externo — em ambos os casos não é uma página de
+    // venda de verdade.
+    return !path.includes("/");
   } catch {
     return false;
   }
