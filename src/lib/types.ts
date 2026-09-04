@@ -39,6 +39,10 @@ export interface MetaStatus {
   // Diagnóstico técnico do funil da rodada — não é pra exibir no painel,
   // só pra debug via GET /api/status.
   diagnostico: string;
+  // Onde a próxima rodada começa a varrer a lista de keywords. O minerador lê
+  // este campo daqui, então ele PRECISA sair no JSON — sem ele a rodada
+  // recomeça sempre do início da lista.
+  keywordCursor: number;
 }
 
 export type FilterKey =

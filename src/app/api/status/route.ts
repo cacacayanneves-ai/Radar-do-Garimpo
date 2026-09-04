@@ -18,6 +18,7 @@ export async function GET() {
       podadasHoje: 0,
       escalations: [],
       diagnostico: "",
+      keywordCursor: 0,
     });
   }
 

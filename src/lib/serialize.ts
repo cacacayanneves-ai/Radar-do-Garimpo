@@ -34,5 +34,6 @@ export function serializeStatus(s: PrismaMetaStatus): MetaStatus {
     podadasHoje: s.podadasHoje,
     escalations: (s.escalations as unknown as string[]) ?? [],
     diagnostico: s.diagnostico,
+    keywordCursor: s.keywordCursor,
   };
 }
