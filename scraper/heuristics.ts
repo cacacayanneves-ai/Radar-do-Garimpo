@@ -183,6 +183,24 @@ const NON_DIGITAL_SIGNALS = [
   "test drive",
   "km rodados",
   "km rodado",
+  // Formulário de captação de lead (não é venda direta/self-service).
+  "preencha o formulário",
+  "preencha o formulario",
+  "cadastre-se agora",
+  "cadastre-se gratuitamente",
+  "deixe seus dados",
+  "deixe seu contato",
+  "receba uma ligação",
+  "receba uma ligacao",
+  "fale com um consultor",
+  "fale com um especialista",
+  "agende uma consulta",
+  "agende uma call",
+  "solicite um orçamento",
+  "solicite um orcamento",
+  "orçamento sem compromisso",
+  "orcamento sem compromisso",
+  "inscreva-se para saber mais",
 ];
 
 // true = o texto tem um sinal forte de produto físico/serviço
