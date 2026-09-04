@@ -280,23 +280,13 @@ export function hasDigitalProductSignal(adText: string): boolean {
   return DIGITAL_PRODUCT_SIGNALS.some((t) => text.includes(t));
 }
 
-// Palavras que praticamente só existem em espanhol — usadas pra rejeitar
-// páginas de venda que na verdade são de outro mercado (mesmo anunciando
-// pra country=BR na Biblioteca de Anúncios, a página de destino real às
-// vezes não é localizada pro Brasil).
-const SPANISH_ONLY_SIGNALS = [
-  "responde",
-  "preguntas",
-  "descubre",
-  "empezar",
-  "cómo",
-  "haz clic",
-  "clic aquí",
-  "tú mismo",
-  "tu propia",
-  "más información",
-  "así es",
-];
+// A lista de "palavras só do espanhol" que existia aqui foi removida: várias
+// delas ("responde", "cómo" sem acento em texto sem acentuação) também são
+// português, e ela reprovava página brasileira boa — pegou a oferta da
+// Maximus Tecidos, que o Cayan já tinha validado. Quem cuida de idioma agora
+// é pareceOutroIdioma, que exige marcas de português (ç, ã, ção, não) em vez
+// de caçar palavras de outro idioma: espanhol e inglês não têm essas marcas,
+// e página brasileira tem às dezenas.
 
 // Página que pede dados de contato pra "liberar" o conteúdo, em vez de
 // vender direto — formulário de captação de lead, não é a oferta se
@@ -344,7 +334,47 @@ const QUIZ_FUNNEL_SIGNALS = [
 // Loja de produto FÍSICO. O sinal decisivo é frete/entrega — "carrinho" e
 // "adicionar ao carrinho" não servem, porque loja de produto digital
 // legítima (WooCommerce etc.) também tem carrinho.
+// Marcas que praticamente só existem em português. Uma página de venda
+// brasileira de verdade tem dezenas delas; página em inglês não tem nenhuma,
+// e espanhol também não (usa "ñ", não "ç"/"ã"). Serve pra barrar oferta
+// internacional que anuncia pro Brasil mas vende em outro idioma — entrou
+// uma certificação de coach em inglês (efficientcoach.com) por não existir
+// checagem de inglês, só de espanhol.
+// Só marcas acentuadas: chegaram a entrar "lh" e "nh" (que não existem em
+// espanhol nem inglês), mas palavras inglesas comuns como "unhappy" e
+// "enhance" contêm "nh" e enfraqueciam a detecção de inglês. Página de venda
+// brasileira sem NENHUM ç/ã/ção em 400+ caracteres é rara o bastante pra não
+// compensar esse risco.
+const PORTUGUESE_MARKERS = ["ção", "não", "você", "ões", "ç", "ã"];
+const MIN_MARCAS_PORTUGUES = 5;
+
+// Só julga texto com tamanho suficiente — página curta ou quase toda em
+// imagem não dá pra avaliar, e nesse caso não rejeita (não inventa motivo
+// pra descartar oferta que pode ser boa).
+export function pareceOutroIdioma(pageText: string): boolean {
+  const text = pageText.toLowerCase();
+  if (text.length < 400) return false;
+
+  let marcas = 0;
+  for (const marca of PORTUGUESE_MARKERS) {
+    let i = text.indexOf(marca);
+    while (i !== -1) {
+      marcas++;
+      if (marcas >= MIN_MARCAS_PORTUGUES) return false;
+      i = text.indexOf(marca, i + 1);
+    }
+  }
+  return true;
+}
+
 const PHYSICAL_STORE_SIGNALS = [
+  // Loja com catálogo de produto físico — não é uma oferta única que vende
+  // por si só. Pegou o ateliermaosdemaria.com, que lista "PRODUTOS FÍSICOS"
+  // ao lado de "PRODUTOS DIGITAIS", "BOLSAS", "BEBÊS".
+  "produtos físicos",
+  "produtos fisicos",
+  "produto físico",
+  "produto fisico",
   "política de frete",
   "politica de frete",
   "calcular frete",
@@ -385,19 +415,19 @@ export function isSearchResultsUrl(url: string): boolean {
 export interface LandingPageVerdict {
   ok: boolean;
   reason?:
-    | "espanhol"
     | "formulario_de_lead"
     | "conteudo_de_blog"
     | "quiz_de_captacao"
     | "loja_fisica"
+    | "outro_idioma"
     | "pagina_de_busca";
 }
 
 export function verifyLandingPage(pageText: string, url?: string): LandingPageVerdict {
   const text = pageText.toLowerCase();
 
-  if (SPANISH_ONLY_SIGNALS.some((t) => text.includes(t))) {
-    return { ok: false, reason: "espanhol" };
+  if (pareceOutroIdioma(pageText)) {
+    return { ok: false, reason: "outro_idioma" };
   }
 
   if (LEAD_FORM_PAGE_SIGNALS.some((t) => text.includes(t))) {
@@ -440,20 +470,39 @@ function parseValor(bruto: string): number | null {
   return Number.isNaN(valor) || valor <= 0 ? null : valor;
 }
 
-export function extractPriceFromPage(pageText: string): number | null {
-  // Remove os trechos de parcelamento ("12x de R$ 2,90") antes de tudo.
-  const semParcelas = pageText.replace(/\d+\s*x\s*(de\s*)?R\$\s?[\d.,]+/gi, " ");
+const PRECO = String.raw`(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)`;
 
-  // "por apenas R$ 27,90" / "por R$ 27,90" vence a ancoragem "de R$ 97".
-  const porApenas = semParcelas.match(/por\s+(apenas\s+)?R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i);
+export function extractPriceFromPage(pageText: string): number | null {
+  let limpo = pageText;
+
+  // Parcelamento ("12x de R$ 2,90") nunca é o preço da oferta.
+  limpo = limpo.replace(/\d+\s*x\s*(de\s*)?R\$\s?[\d.,]+/gi, " ");
+
+  // Preço de bônus/referência ("Valor normal: R$ 254,00 | Bônus: GRÁTIS").
+  // Página de venda longa lista um desses por brinde — a da Maximus tinha 12
+  // deles ANTES do preço real, e o extrator ficava com o primeiro (R$ 794),
+  // o que reprovava a oferta por "preço fora da faixa".
+  limpo = limpo.replace(/valor\s+(normal|original|real)\s*:?\s*R\$\s?[\d.,]+/gi, " ");
+  limpo = limpo.replace(/de\s*R\$\s?[\d.,]+\s*(?=por\b)/gi, " "); // ancoragem "de R$ 97 por R$ 19"
+
+  // "por apenas R$ 19,97" é o sinal mais forte de preço praticado.
+  const porApenas = limpo.match(new RegExp(String.raw`por\s+apenas\s+R\$\s?${PRECO}`, "i"));
   if (porApenas) {
-    const valor = parseValor(porApenas[2]);
+    const valor = parseValor(porApenas[1]);
+    if (valor != null) return valor;
+  }
+
+  // "por R$ X" — fica com a ÚLTIMA ocorrência, que é o preço do botão final
+  // de compra; as primeiras costumam ser comparação com outros produtos.
+  const porTodas = [...limpo.matchAll(new RegExp(String.raw`por\s+R\$\s?${PRECO}`, "gi"))];
+  for (let i = porTodas.length - 1; i >= 0; i--) {
+    const valor = parseValor(porTodas[i][1]);
     if (valor != null) return valor;
   }
 
   // Primeiro preço válido, na ordem da página. Pula zerados — quase toda
   // loja mostra "R$ 0,00" do carrinho vazio no topo, antes do preço real.
-  for (const m of semParcelas.matchAll(/R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/g)) {
+  for (const m of limpo.matchAll(new RegExp(String.raw`R\$\s?${PRECO}`, "g"))) {
     const valor = parseValor(m[1]);
     if (valor != null) return valor;
   }
@@ -522,16 +571,16 @@ export function isWhatsappLink(url: string | null): boolean {
   return url.includes("api.whatsapp.com/send");
 }
 
+// Instagram nunca é "página de venda que vende por si só" — é perfil, post
+// ou link de app. A versão antiga só rejeitava quando o caminho não tinha
+// barra, e o formato de deep link do app (instagram.com/_u/usuario) criava
+// uma barra que enganava a checagem: um perfil entrou no catálogo com o
+// produto chamado literalmente "Instagram".
 export function isGenericInstagramProfile(url: string | null): boolean {
   if (!url) return false;
   try {
-    const u = new URL(url);
-    if (!u.hostname.includes("instagram.com")) return false;
-    const path = u.pathname.replace(/^\/|\/$/g, "");
-    // Domínio raiz (sem @usuário nenhum) ou só o @usuário, sem indicação de
-    // produto/loja/link externo — em ambos os casos não é uma página de
-    // venda de verdade.
-    return !path.includes("/");
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host === "instagram.com" || host.endsWith(".instagram.com");
   } catch {
     return false;
   }

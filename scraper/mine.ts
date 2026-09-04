@@ -574,19 +574,20 @@ async function mineNewOffers(
         if (nomeReal) produto = nomeReal;
       }
 
-      // Confirmação de que é infoproduto digital. Roda AQUI, sobre o texto do
-      // anúncio MAIS o da página de venda, porque o anúncio quase nunca diz o
-      // formato — ele é a isca ("descubra o método...") e quem diz "PDF",
-      // "acesso imediato", "área de membros" é a página. Rodando só sobre o
-      // anúncio, este filtro sozinho descartava 40% dos candidatos, boa parte
-      // deles oferta legítima.
+      // Confirmação de que é infoproduto digital, e ela precisa vir DA PÁGINA
+      // DE VENDA — não do anúncio. O anúncio é isca ("descubra o método...")
+      // e mente por omissão: um artigo de blog sobre devoção mariana
+      // (informativoedu.site) entrou no catálogo porque o ANÚNCIO tinha
+      // sinal digital, enquanto a página não tinha nada — nem preço, nem
+      // formato, só texto corrido.
       //
-      // Basta uma das duas evidências: sinal digital no texto, OU preço real
-      // já confirmado dentro da faixa R$9–50 na página de venda (que também
-      // já passou por verifyLandingPage — não é blog, quiz, formulário de
-      // lead nem loja física).
-      const textoComLanding = `${combinedText} ${landing?.text ?? ""}`;
-      if (!hasDigitalProductSignal(textoComLanding) && precoDaPagina == null && !ticket) {
+      // Basta uma das duas evidências, mas as duas saem da página: um sinal
+      // de material digital no texto dela, OU um preço real já confirmado na
+      // faixa R$9–50. Se a página não carregou, não dá pra confirmar nada e a
+      // oferta não entra (diferente da revalidação, que é tolerante: pra
+      // ENTRAR exige-se prova, pra SAIR exige-se confirmação repetida).
+      const temSinalNaPagina = landing ? hasDigitalProductSignal(landing.text) : false;
+      if (!temSinalNaPagina && precoDaPagina == null) {
         funnel.semSinalDigital++;
         continue;
       }

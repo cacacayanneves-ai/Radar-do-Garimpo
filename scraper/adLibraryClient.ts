@@ -435,8 +435,22 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       // "networkidle" (e não domcontentloaded): muita página de venda
       // renderiza preço e conteúdo por JS depois do DOM inicial. Lendo cedo
       // demais, o preço saía diferente a cada leitura da MESMA página.
-      await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
-      await randomDelay(1200, 2000);
+      //
+      // Mas página com chat, pixel de anúncio ou vídeo NUNCA fica ociosa, e aí
+      // o networkidle estoura o tempo e a página inteira era perdida — mesmo
+      // respondendo normal (medido: dois sites do próprio catálogo, HTTP 200
+      // em menos de 1,5s, falhavam sempre). Então o networkidle vira só a
+      // PRIMEIRA tentativa: se estourar, recarrega esperando o DOM e dá um
+      // tempo fixo pro JS renderizar. Pior caso vira leitura um pouco menos
+      // estável — melhor que perder a oferta.
+      try {
+        await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
+        await randomDelay(1200, 2000);
+      } catch {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+
       const [title, text] = await Promise.all([
         page.title().catch(() => ""),
         page.innerText("body").catch(() => ""),
