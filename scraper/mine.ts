@@ -6,6 +6,9 @@ import {
   generateOfferId,
   guessInternacional,
   guessRiscoPolitica,
+  hasDigitalProductSignal,
+  hasNonDigitalSignal,
+  isFacebookOwnedLink,
   isGenericInstagramProfile,
   isWhatsappLink,
   ticketInRange,
@@ -70,6 +73,15 @@ function daysSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
 }
 
+// Chave de "mesmo produto": mesma página anunciante + mesma página de venda.
+// Múltiplos anúncios (libraryId diferentes) podem estar testando o mesmo
+// produto — isso já é o que o campo `collation` mede por criativo, mas
+// diferentes criativos testando a mesma oferta não devem virar linhas
+// duplicadas no catálogo.
+function productKey(pageId: string, vendaUrl: string): string {
+  return `${pageId}::${vendaUrl}`;
+}
+
 function detectStrongEscalation(history: HistoryPoint[]): boolean {
   if (history.length < 2) return false;
   const hoje = history[history.length - 1].c;
@@ -89,6 +101,7 @@ interface RoundReport {
 async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>) {
   const current = await fetchCurrentOffers();
   const trackedLibraryIds = new Set(current.map((o) => o.libraryId));
+  const trackedProductKeys = new Set<string>();
 
   const report: RoundReport = { novas: [], podadas: [], escalations: [] };
   const toDelete: { id: string; motivo: string }[] = [];
@@ -108,6 +121,11 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
 
       if (isWhatsappLink(details.link)) {
         toDelete.push({ id: offer.id, motivo: "destino mudou para WhatsApp" });
+        continue;
+      }
+
+      if (isFacebookOwnedLink(details.link)) {
+        toDelete.push({ id: offer.id, motivo: "link passou a apontar pro próprio Facebook (não é página de venda)" });
         continue;
       }
 
@@ -135,6 +153,7 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         collation: details.collation,
         history,
       });
+      trackedProductKeys.add(productKey(details.pageId ?? offer.pageId, details.link));
     }
 
     if (i + REVALIDATE_BATCH_SIZE < current.length) {
@@ -142,12 +161,13 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
     }
   }
 
-  return { trackedLibraryIds, toDelete, toUpsert, report };
+  return { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report };
 }
 
 async function mineNewOffers(
   client: ReturnType<typeof getAdLibraryClient>,
   trackedLibraryIds: Set<string>,
+  trackedProductKeys: Set<string>,
   report: RoundReport
 ) {
   const keywords = keywordsForToday(7);
@@ -169,11 +189,23 @@ async function mineNewOffers(
       if (!details || !details.link) continue;
 
       if (isWhatsappLink(details.link)) continue; // regra de negócio: nunca WhatsApp.
+      if (isFacebookOwnedLink(details.link)) continue; // não é uma página de venda de verdade.
       if (isGenericInstagramProfile(details.link)) continue;
       if (!details.pageName || !details.pageId) continue;
 
-      const ticket = extractTicket(`${candidate.adText} ${details.adText}`);
+      const combinedText = `${candidate.adText} ${details.adText}`;
+      if (hasNonDigitalSignal(combinedText)) continue; // sinal forte de produto físico/serviço/oferta financeira.
+
+      const ticket = extractTicket(combinedText);
       if (!ticketInRange(ticket)) continue;
+
+      // Sem nenhuma evidência de que é infoproduto digital (nem palavra tipo
+      // "PDF"/"apostila", nem preço declarado low-ticket) — descarta, não dá
+      // pra confirmar que é o tipo de oferta que estamos garimpando.
+      if (!hasDigitalProductSignal(combinedText) && !ticket) continue;
+
+      const dedupeKey = productKey(details.pageId, details.link);
+      if (trackedProductKeys.has(dedupeKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
 
       let concorrencia = nicheCompetitionCache.get(keyword);
       if (concorrencia === undefined) {
@@ -202,7 +234,7 @@ async function mineNewOffers(
         concorrencia: concorrencia ?? null,
         concorrenciaEm: concorrencia != null ? new Date().toISOString() : null,
         internacional: guessInternacional(keyword, produto),
-        riscoPolitica: guessRiscoPolitica(`${candidate.adText} ${details.adText}`),
+        riscoPolitica: guessRiscoPolitica(combinedText),
         primeiraDeteccao: new Date().toISOString(),
         descoberta: true,
         history: details.collation != null ? [{ d: todayIso(), c: details.collation }] : [],
@@ -210,6 +242,7 @@ async function mineNewOffers(
 
       newOffers.push(offer);
       trackedLibraryIds.add(candidate.libraryId);
+      trackedProductKeys.add(dedupeKey);
       report.novas.push({
         id,
         produto,
@@ -256,13 +289,13 @@ async function main() {
   const client = getAdLibraryClient();
 
   try {
-    const { trackedLibraryIds, toDelete, toUpsert, report } = await revalidateExisting(client);
+    const { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report } = await revalidateExisting(client);
 
     if (toUpsert.length > 0) {
       await upsertOffers(toUpsert);
     }
 
-    const newOffers = await mineNewOffers(client, trackedLibraryIds, report);
+    const newOffers = await mineNewOffers(client, trackedLibraryIds, trackedProductKeys, report);
     if (newOffers.length > 0) {
       await upsertOffers(newOffers);
     }

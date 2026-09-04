@@ -108,6 +108,98 @@ export function ticketInRange(ticket: string | null): boolean {
   return value >= 9 && value <= 50;
 }
 
+// A busca por palavra-chave da Biblioteca de Anúncios é solta — ela traz
+// anúncios que só tangenciam a keyword (ex: buscando "kit digital por
+// apenas" também aparece "compre um carro usado sem entrada"). Isso não é
+// infoproduto nenhum. Esse filtro exige um sinal claro de material digital
+// (PDF, apostila, molde, planilha, curso online etc.) E rejeita de cara
+// qualquer sinal forte de produto físico/serviço presencial/oferta
+// financeira — mesmo heurístico, mesma limitação: não substitui revisão
+// manual, só reduz o volume de lixo óbvio.
+const DIGITAL_PRODUCT_SIGNALS = [
+  "pdf",
+  "e-book",
+  "ebook",
+  "apostila",
+  "apostilas",
+  "molde",
+  "moldes",
+  "gráfico",
+  "graficos",
+  "gráficos",
+  "planilha",
+  "planilhas",
+  "kit digital",
+  "material digital",
+  "arquivo digital",
+  "arquivos digitais",
+  "curso online",
+  "curso 100% online",
+  "acesso imediato",
+  "acesso vitalício",
+  "acesso vitalicio",
+  "receba no seu e-mail",
+  "direto no seu e-mail",
+  "envio digital",
+  "download",
+  "arte digital",
+  "editável",
+  "editavel",
+  "impressão",
+  "para imprimir",
+  "colorir",
+  "atividades prontas",
+  "atividades para",
+  "desenhos para",
+  "prontas para imprimir",
+];
+
+const NON_DIGITAL_SIGNALS = [
+  "carro usado",
+  "carro seminovo",
+  "sem entrada",
+  "entrada facilitada",
+  "financiamento",
+  "propriedade rural",
+  "piquete",
+  "máquinas agrícolas",
+  "maquinas agricolas",
+  "curso presencial",
+  "vagas limitadas para a turma",
+  "consulta médica",
+  "consulta medica",
+  "imóvel",
+  "imovel",
+  "imóveis",
+  "seguro de vida",
+  "empréstimo consignado",
+  "emprestimo consignado",
+  "cartão de crédito",
+  "cartao de credito",
+  "vaga de emprego",
+  "envie seu currículo",
+  "envie seu curriculo",
+  "agendar visita",
+  "test drive",
+  "km rodados",
+  "km rodado",
+];
+
+// true = o texto tem um sinal forte de produto físico/serviço
+// presencial/oferta financeira — nesse caso o candidato é sempre descartado,
+// mesmo que também tenha um preço declarado ou uma palavra "digital" solta.
+export function hasNonDigitalSignal(adText: string): boolean {
+  const text = adText.toLowerCase();
+  return NON_DIGITAL_SIGNALS.some((t) => text.includes(t));
+}
+
+// true = o texto menciona explicitamente um formato de material digital
+// (PDF, apostila, molde, planilha etc.).
+export function hasDigitalProductSignal(adText: string): boolean {
+  const text = adText.toLowerCase();
+  return DIGITAL_PRODUCT_SIGNALS.some((t) => text.includes(t));
+}
+
 export function slugify(input: string): string {
   return input
     .normalize("NFD")
@@ -138,6 +230,31 @@ export function isGenericInstagramProfile(url: string | null): boolean {
     // produto/loja/link externo — em ambos os casos não é uma página de
     // venda de verdade.
     return !path.includes("/");
+  } catch {
+    return false;
+  }
+}
+
+const FACEBOOK_OWNED_HOSTS = [
+  "facebook.com",
+  "fb.me",
+  "fb.com",
+  "l.facebook.com",
+  "m.facebook.com",
+  "business.facebook.com",
+  "messenger.com",
+  "m.me",
+];
+
+// O link_url de um anúncio às vezes aponta pra dentro do próprio Facebook
+// (Página, Messenger, formulário de lead) em vez de um site externo de
+// verdade. Isso nunca é uma "página de venda" própria — mesma regra de
+// negócio que já rejeita WhatsApp, só que pro domínio da própria Meta.
+export function isFacebookOwnedLink(url: string | null): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return FACEBOOK_OWNED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
   } catch {
     return false;
   }
