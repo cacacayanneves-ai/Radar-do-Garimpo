@@ -201,6 +201,20 @@ const NON_DIGITAL_SIGNALS = [
   "orçamento sem compromisso",
   "orcamento sem compromisso",
   "inscreva-se para saber mais",
+  // Concurso público / mercado dominado por players grandes — pedido
+  // explícito: fora do radar, mesmo quando parece um infoproduto digital.
+  "concurso público",
+  "concurso publico",
+  "concurseiro",
+  "concurseira",
+  "edital publicado",
+  "edital do concurso",
+  "banca examinadora",
+  "cargo público",
+  "cargo publico",
+  "prova objetiva",
+  "vestibular",
+  "detran",
 ];
 
 // true = o texto tem um sinal forte de produto físico/serviço

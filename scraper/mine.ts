@@ -46,6 +46,13 @@ const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
 const PRUNE_LOOKBACK_POINTS = 10;
 
+// Nicho com concorrência acima disso é tratado como mercado grande/saturado
+// (dominado por players grandes) e nenhuma oferta NOVA é minerada dele —
+// mesmo limite que já divide "brass" de "clay" no painel (>900 = ruim).
+// Pedido explícito: só interessa nicho com pouca concorrência e boa chance
+// de lucro, não concorrer com quem já é grande no mercado.
+const MAX_ACCEPTABLE_COMPETITION = 900;
+
 const startedAt = Date.now();
 function deadlineReached(): boolean {
   return Date.now() - startedAt > EFFORT_DEADLINE_MS;
@@ -187,6 +194,17 @@ async function mineNewOffers(
   for (const keyword of keywords) {
     if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
 
+    // Mede a concorrência do nicho ANTES de gastar tempo avaliando
+    // candidatos — nicho saturado (mercado grande/dominado por players
+    // grandes) não interessa, mesmo que os anúncios individuais pareçam ok.
+    let concorrencia = nicheCompetitionCache.get(keyword);
+    if (concorrencia === undefined) {
+      concorrencia = await client.searchCompetitionCount(keyword);
+      await randomDelay(800, 1500);
+      nicheCompetitionCache.set(keyword, concorrencia);
+    }
+    if (concorrencia != null && concorrencia > MAX_ACCEPTABLE_COMPETITION) continue;
+
     const candidates = await client.searchAds(keyword, 20);
     await randomDelay(1200, 2200);
 
@@ -223,13 +241,6 @@ async function mineNewOffers(
       const urlKey = productUrlKey(details.pageId, details.link);
       const textKey = productTextKey(details.pageId, produto);
       if (trackedProductKeys.has(urlKey) || trackedProductKeys.has(textKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
-
-      let concorrencia = nicheCompetitionCache.get(keyword);
-      if (concorrencia === undefined) {
-        concorrencia = await client.searchCompetitionCount(keyword);
-        await randomDelay(800, 1500);
-        nicheCompetitionCache.set(keyword, concorrencia);
-      }
 
       const id = generateOfferId(produto, details.pageName, candidate.libraryId);
 
