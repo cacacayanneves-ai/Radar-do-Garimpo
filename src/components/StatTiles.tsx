@@ -1,7 +1,13 @@
 import type { Offer } from "@/lib/types";
 import { computeDelta, isNewThisWeek } from "@/lib/compute";
 
-export default function StatTiles({ offers }: { offers: Offer[] }) {
+export default function StatTiles({
+  offers,
+  onIrParaOferta,
+}: {
+  offers: Offer[];
+  onIrParaOferta: (offerId: string) => void;
+}) {
   const total = offers.length;
   const escalando = offers.filter((o) => (computeDelta(o) ?? 0) > 0).length;
   const aguardando2aLeitura = offers.filter((o) => (o.history || []).length < 2).length;
@@ -39,14 +45,26 @@ export default function StatTiles({ offers }: { offers: Offer[] }) {
         <div className="tile-value">{novas}</div>
         <div className="tile-label">Descobertas na semana</div>
       </div>
-      <div className="tile tile-clay">
-        <div className="tile-icon">🔥</div>
-        <div className="tile-value">{maiorEscalada ? `+${maiorEscalada.delta}` : "—"}</div>
-        <div className="tile-label">Maior escalada do dia</div>
-        <div className="tile-note">
-          {maiorEscalada ? maiorEscalada.offer.produto.slice(0, 40) : "nenhuma escalada hoje"}
+      {maiorEscalada ? (
+        <button
+          type="button"
+          className="tile tile-clay tile-clickable"
+          onClick={() => onIrParaOferta(maiorEscalada!.offer.id)}
+          title="Ir até essa oferta na lista"
+        >
+          <div className="tile-icon">🔥</div>
+          <div className="tile-value">{`+${maiorEscalada.delta}`}</div>
+          <div className="tile-label">Maior escalada do dia</div>
+          <div className="tile-note">{maiorEscalada.offer.produto.slice(0, 40)}</div>
+        </button>
+      ) : (
+        <div className="tile tile-clay">
+          <div className="tile-icon">🔥</div>
+          <div className="tile-value">—</div>
+          <div className="tile-label">Maior escalada do dia</div>
+          <div className="tile-note">nenhuma escalada hoje</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -57,6 +57,10 @@ export default function LiveDashboard({
   const [status, setStatus] = useState<MetaStatus | null>(initialStatus);
   const [filter, setFilter] = useState<FilterKey>("todas");
   const [sort, setSort] = useState<SortState>({ key: "opportunity", dir: "desc" });
+  // Alvo de rolagem: quando o usuário clica no tile "Maior escalada do dia",
+  // a tabela rola até essa linha e pisca ela. O `seq` garante que clicar de
+  // novo na MESMA oferta funcione (senão o id não muda e o efeito não dispara).
+  const [scrollAlvo, setScrollAlvo] = useState<{ id: string; seq: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const favoritos = useLocalOfferSet("radar-favoritos");
@@ -141,10 +145,18 @@ export default function LiveDashboard({
   // o que está ativamente em radar — sem as descartadas.
   const ofertasAtivas = useMemo(() => offers.filter((o) => !descartados.has(o.id)), [offers, descartados]);
 
+  // Troca pro filtro "todas" pra garantir que a linha exista na tabela
+  // (senão um filtro ativo, tipo "Favoritas", poderia esconder a oferta que
+  // acabou de escalar) e pede pra tabela rolar até ela.
+  function irParaOferta(offerId: string) {
+    setFilter("todas");
+    setScrollAlvo({ id: offerId, seq: Date.now() });
+  }
+
   return (
     <div className="page">
       <Header offersCount={ofertasAtivas.length} />
-      <StatTiles offers={ofertasAtivas} />
+      <StatTiles offers={ofertasAtivas} onIrParaOferta={irParaOferta} />
       <FilterTabs
         active={filter}
         onChange={setFilter}
@@ -159,6 +171,7 @@ export default function LiveDashboard({
         isDescartada={descartados.has}
         onToggleFavorita={favoritos.toggle}
         onToggleDescartada={descartados.toggle}
+        scrollAlvo={scrollAlvo}
       />
       <div className="footer">Última mineração: {formatLastRun(status?.lastRun ?? null)}</div>
     </div>

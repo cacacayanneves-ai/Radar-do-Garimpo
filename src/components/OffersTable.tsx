@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { Offer, SortKey, SortState } from "@/lib/types";
 import { computeDelta, diasNoAr } from "@/lib/compute";
 import Sparkline from "./Sparkline";
@@ -25,6 +26,7 @@ export default function OffersTable({
   isDescartada,
   onToggleFavorita,
   onToggleDescartada,
+  scrollAlvo,
 }: {
   offers: Offer[];
   sort: SortState;
@@ -33,9 +35,23 @@ export default function OffersTable({
   isDescartada: (id: string) => boolean;
   onToggleFavorita: (id: string) => void;
   onToggleDescartada: (id: string) => void;
+  scrollAlvo?: { id: string; seq: number } | null;
 }) {
   // ▲ = crescente, ▼ = decrescente. Só aparece na coluna ativa.
   const seta = (key: SortKey) => (sort.key !== key ? "" : sort.dir === "asc" ? "▲" : "▼");
+
+  // Rola até a linha pedida (clique no tile "Maior escalada do dia") e pisca
+  // ela. Depende de `seq`, não só do id, pra funcionar mesmo clicando duas
+  // vezes seguidas na mesma oferta.
+  useEffect(() => {
+    if (!scrollAlvo) return;
+    const el = document.getElementById(`oferta-${scrollAlvo.id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("row-highlight");
+    const t = setTimeout(() => el.classList.remove("row-highlight"), 2200);
+    return () => clearTimeout(t);
+  }, [scrollAlvo]);
 
   if (offers.length === 0) {
     return (
@@ -80,7 +96,7 @@ export default function OffersTable({
             const descartada = isDescartada(o.id);
 
             return (
-              <tr key={o.id} className={`row-rise ${rowCls}`} style={style}>
+              <tr key={o.id} id={`oferta-${o.id}`} className={`row-rise ${rowCls}`} style={style}>
                 <td data-label="Oferta">
                   <div className="niche-badge">{o.niche}</div>
                   <div className="offer-produto" title={o.produto}>
