@@ -37,6 +37,11 @@ export interface AdLibraryClient {
   // verdade, não um formulário de lead/quiz ou conteúdo de blog. Retorna
   // null se a página não carregar.
   fetchLandingPageText(url: string): Promise<string | null>;
+  // Conta quantos anúncios ativos do anunciante usam o mesmo texto de
+  // criativo — a medida de "quantos criativos estão rodando" usada na
+  // revalidação, onde não há página de busca pra contar. Usa a página que
+  // lista todos os anúncios da página do anunciante.
+  countAdvertiserCreatives(pageId: string, adText: string): Promise<number | null>;
   // Quantas vezes a Biblioteca de Anúncios respondeu exigindo captcha ou
   // com o payload vazio. Rodando de um IP de datacenter (ex: runner do
   // GitHub Actions) o Facebook trata a requisição diferente de um IP
@@ -288,12 +293,32 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       if (uniqueIds.length === 0) this.blockStats.emptyPayload++;
 
-      const results: SearchResultCard[] = uniqueIds.map((libraryId) => ({
-        libraryId,
-        adText: extractNearbyText(html, libraryId),
-        pageName: null,
-        collationHint: null,
-      }));
+      // Quantos anúncios DESTA página de busca compartilham exatamente o
+      // mesmo texto de criativo — é o mesmo cálculo de collation feito na
+      // página de detalhe, mas a partir de uma página que sabidamente traz
+      // muitos anúncios de uma vez. A página de detalhe nem sempre lista os
+      // anúncios relacionados (varia por ambiente/IP), então esse é o sinal
+      // mais confiável dos dois.
+      const textsById = new Map<string, string>();
+      const copiesByText = new Map<string, number>();
+      for (const id of uniqueIds) {
+        const text = extractNearbyText(html, id);
+        textsById.set(id, text);
+        const norm = normalizeCreativeText(text);
+        if (!norm) continue;
+        copiesByText.set(norm, (copiesByText.get(norm) ?? 0) + 1);
+      }
+
+      const results: SearchResultCard[] = uniqueIds.map((libraryId) => {
+        const adText = textsById.get(libraryId) ?? "";
+        const norm = normalizeCreativeText(adText);
+        return {
+          libraryId,
+          adText,
+          pageName: null,
+          collationHint: norm ? copiesByText.get(norm) ?? null : null,
+        };
+      });
 
       return results;
     } catch {
@@ -325,6 +350,47 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       const numeric = parseInt(match[1].replace(/[.,]/g, ""), 10);
       return Number.isNaN(numeric) ? null : numeric;
+    } catch {
+      this.blockStats.navFailures++;
+      return null;
+    } finally {
+      await page.close();
+    }
+  }
+
+  async countAdvertiserCreatives(pageId: string, adText: string): Promise<number | null> {
+    const targetNorm = normalizeCreativeText(adText);
+    if (!targetNorm) return null;
+
+    const context = await this.contextPromise;
+    const page = await context.newPage();
+    try {
+      const url = `${BASE_URL}?active_status=active&ad_type=all&country=BR&view_all_page_id=${encodeURIComponent(
+        pageId
+      )}&search_type=page&media_type=all`;
+
+      await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
+      await randomDelay(800, 1600);
+
+      for (let i = 0; i < 3; i++) {
+        await page.mouse.wheel(0, 2400);
+        await randomDelay(400, 900);
+      }
+
+      const html = await page.content();
+      if (isCaptchaRequired(html)) this.blockStats.captcha++;
+
+      const ids = Array.from(new Set(Array.from(html.matchAll(/"ad_archive_id":"(\d+)"/g)).map((m) => m[1])));
+      if (ids.length === 0) {
+        this.blockStats.emptyPayload++;
+        return null;
+      }
+
+      let count = 0;
+      for (const id of ids) {
+        if (normalizeCreativeText(extractNearbyText(html, id)) === targetNorm) count++;
+      }
+      return count > 0 ? count : null;
     } catch {
       this.blockStats.navFailures++;
       return null;

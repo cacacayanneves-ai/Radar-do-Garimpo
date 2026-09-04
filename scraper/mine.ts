@@ -204,7 +204,22 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         continue;
       }
 
-      const history = appendHistory(offer.history, details.collation);
+      // O número de criativos é o dado que alimenta o histórico e, por
+      // consequência, todo o "está escalando ou não" do painel. A página de
+      // detalhe nem sempre informa (nem sempre lista os anúncios
+      // relacionados do anunciante, varia por ambiente) — quando não
+      // informa, conta pela página que lista todos os anúncios daquele
+      // anunciante.
+      let collationHoje = details.collation;
+      if (collationHoje == null) {
+        collationHoje = await client.countAdvertiserCreatives(
+          details.pageId ?? offer.pageId,
+          details.adText || offer.produto
+        );
+        await randomDelay(700, 1400);
+      }
+
+      const history = appendHistory(offer.history, collationHoje);
 
       if (detectStrongEscalation(history)) {
         const hoje = history[history.length - 1].c;
@@ -225,7 +240,7 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       toUpsert.push({
         ...toUpsertInput(offer),
         vendaUrl: details.link,
-        collation: details.collation,
+        collation: collationHoje ?? offer.collation,
         history,
       });
       const revalidatedPageId = details.pageId ?? offer.pageId;
@@ -285,7 +300,16 @@ async function mineNewOffers(
         continue;
       }
 
-      if ((details.collation ?? 0) < MIN_COLLATION_FOR_NEW_OFFER) {
+      // Duas fontes pro número de criativos, fica com a maior: o que o
+      // Facebook informa na página de detalhe (quando informa) e o que
+      // contamos na própria página de busca. A da busca é a mais confiável
+      // entre ambientes — a página de detalhe nem sempre lista os anúncios
+      // relacionados do mesmo anunciante (foi exatamente isso que fez o
+      // runner do GitHub rejeitar 136 de 139 candidatos por "poucos
+      // criativos" enquanto local aceitava normalmente).
+      const collation = Math.max(details.collation ?? 0, candidate.collationHint ?? 0);
+
+      if (collation < MIN_COLLATION_FOR_NEW_OFFER) {
         funnel.poucosCriativos++;
         continue; // poucos criativos rodando — ainda não validado.
       }
@@ -368,14 +392,14 @@ async function mineNewOffers(
         vendaUrl: details.link,
         libraryId: candidate.libraryId,
         pageId: details.pageId,
-        collation: details.collation,
+        collation,
         concorrencia: concorrencia ?? null,
         concorrenciaEm: concorrencia != null ? new Date().toISOString() : null,
         internacional: guessInternacional(keyword, produto),
         riscoPolitica: guessRiscoPolitica(combinedText),
         primeiraDeteccao: new Date().toISOString(),
         descoberta: true,
-        history: details.collation != null ? [{ d: todayIso(), c: details.collation }] : [],
+        history: [{ d: todayIso(), c: collation }],
       };
 
       newOffers.push(offer);
