@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FilterKey, MetaStatus, Offer, SortKey } from "@/lib/types";
-import { computeDelta, isNewThisWeek, opportunity } from "@/lib/compute";
+import { computeDelta, isNewThisWeek, opportunity, topScore } from "@/lib/compute";
 import Header from "./Header";
 import StatTiles from "./StatTiles";
 import FilterTabs from "./FilterTabs";
@@ -55,6 +55,10 @@ export default function LiveDashboard({
 
   const filtered = useMemo(() => {
     switch (filter) {
+      case "top10":
+        // As 10 de maior nota (ver topScore em lib/compute). A ordenação da
+        // coluna escolhida continua valendo, mas só dentro dessas 10.
+        return [...offers].sort((a, b) => topScore(b) - topScore(a)).slice(0, 10);
       case "escalando":
         return offers.filter((o) => (computeDelta(o) ?? 0) > 0);
       case "esfriando":

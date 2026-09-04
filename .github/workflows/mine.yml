@@ -13,7 +13,9 @@ on:
 jobs:
   mine:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # Acima do teto de esforço do próprio script (70 min), pra ele conseguir
+    # fechar a rodada e reportar o status em vez de ser morto no meio.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -21,6 +21,23 @@ export function opportunity(o: Offer): number {
   return ((o.collation || 1) / comp) * 1000; // sinal alto + concorrência baixa = oportunidade alta
 }
 
+// Nota do "Top 10": parte da oportunidade (muitos criativos rodando +
+// pouca concorrência no nicho) e ajusta pelo momento da oferta — quem está
+// escalando agora sobe, quem está esfriando desce, e quem acabou de ser
+// descoberta ganha um empurrãozinho (é onde ainda dá pra entrar cedo).
+export function topScore(o: Offer): number {
+  const base = opportunity(o);
+  const delta = computeDelta(o);
+
+  let momento = 1;
+  if (delta !== null && delta > 0) momento = 1.5;
+  else if (delta !== null && delta < 0) momento = 0.7;
+
+  const novidade = isNewThisWeek(o) ? 1.2 : 1;
+
+  return base * momento * novidade;
+}
+
 export function isEscalatingStrong(collationHoje: number, collationOntem: number): boolean {
   const delta = collationHoje - collationOntem;
   if (delta >= 2) return true;

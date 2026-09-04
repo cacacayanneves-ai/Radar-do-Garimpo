@@ -1,6 +1,11 @@
 import type { FilterKey } from "@/lib/types";
 
-const TABS: { key: FilterKey; label: string }[] = [
+const TABS: { key: FilterKey; label: string; title?: string }[] = [
+  {
+    key: "top10",
+    label: "🏆 Top 10",
+    title: "As 10 melhores: muitos criativos rodando + pouca concorrência, com bônus pra quem está escalando agora",
+  },
   { key: "todas", label: "Todas" },
   { key: "escalando", label: "Escalando" },
   { key: "esfriando", label: "Esfriando" },
@@ -22,6 +27,7 @@ export default function FilterTabs({
             key={t.key}
             className={active === t.key ? "active" : ""}
             onClick={() => onChange(t.key)}
+            title={t.title}
           >
             {t.label}
           </button>

@@ -42,7 +42,11 @@ const MAX_HISTORY_POINTS = 45;
 const REVALIDATE_BATCH_SIZE = 12;
 const REVALIDATE_BATCH_PAUSE_MS = 4000;
 const TARGET_NEW_OFFERS = 30;
-const EFFORT_DEADLINE_MS = 40 * 60 * 1000; // teto de esforço: 40 min
+// Quantas keywords da rotação são varridas por rodada. 7 rendia só ~13
+// ofertas (muita duplicata dentro do mesmo nicho), então varre mais nichos
+// até bater o alvo de 30 — o laço para sozinho ao atingir o alvo.
+const KEYWORDS_PER_ROUND = 20;
+const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
 const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
 const PRUNE_LOOKBACK_POINTS = 10;
@@ -210,14 +214,9 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       // relacionados do anunciante, varia por ambiente) — quando não
       // informa, conta pela página que lista todos os anúncios daquele
       // anunciante.
-      let collationHoje = details.collation;
-      if (collationHoje == null) {
-        collationHoje = await client.countAdvertiserCreatives(
-          details.pageId ?? offer.pageId,
-          details.adText || offer.produto
-        );
-        await randomDelay(700, 1400);
-      }
+      let collationHoje = await client.countAdvertiserCreatives(details.pageId ?? offer.pageId);
+      await randomDelay(700, 1400);
+      if (collationHoje == null) collationHoje = details.collation;
 
       const history = appendHistory(offer.history, collationHoje);
 
@@ -263,9 +262,14 @@ async function mineNewOffers(
   report: RoundReport,
   funnel: FunnelStats
 ) {
-  const keywords = keywordsForToday(7);
+  const keywords = keywordsForToday(KEYWORDS_PER_ROUND);
   const nicheCompetitionCache = new Map<string, number | null>();
   const newOffers: UpsertOfferInput[] = [];
+  // Dedup barato, antes de gastar requisição: vários anúncios da mesma
+  // busca são o mesmo criativo repetido. Na rodada anterior isso foi 48 de
+  // 139 candidatos — todos custando um fetch de detalhe antes de serem
+  // descartados lá embaixo.
+  const textosVistos = new Set<string>();
 
   for (const keyword of keywords) {
     if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
@@ -290,6 +294,21 @@ async function mineNewOffers(
     for (const candidate of candidates) {
       if (newOffers.length >= TARGET_NEW_OFFERS || deadlineReached()) break;
       if (trackedLibraryIds.has(candidate.libraryId)) continue;
+
+      // Mesmo criativo já avaliado nesta rodada (em outra keyword ou outro
+      // card da mesma busca) — descarta antes de gastar a requisição.
+      const textoNormalizado = candidate.adText
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim()
+        .slice(0, 100);
+      if (textoNormalizado) {
+        if (textosVistos.has(textoNormalizado)) {
+          funnel.duplicada++;
+          continue;
+        }
+        textosVistos.add(textoNormalizado);
+      }
 
       funnel.candidatos++;
 
@@ -379,6 +398,14 @@ async function mineNewOffers(
         }
       }
 
+      // Só pros finalistas: pega o número exato de anúncios ativos do
+      // anunciante ("~N resultados" no topo da página dele). O hint da
+      // página de busca serve de filtro barato lá em cima, mas subestima —
+      // a busca só carrega as primeiras dezenas de cards.
+      const collationExata = await client.countAdvertiserCreatives(details.pageId);
+      await randomDelay(600, 1200);
+      const collationFinal = collationExata ?? collation;
+
       funnel.aceitas++;
 
       const id = generateOfferId(produto, details.pageName, candidate.libraryId);
@@ -392,14 +419,14 @@ async function mineNewOffers(
         vendaUrl: details.link,
         libraryId: candidate.libraryId,
         pageId: details.pageId,
-        collation,
+        collation: collationFinal,
         concorrencia: concorrencia ?? null,
         concorrenciaEm: concorrencia != null ? new Date().toISOString() : null,
         internacional: guessInternacional(keyword, produto),
         riscoPolitica: guessRiscoPolitica(combinedText),
         primeiraDeteccao: new Date().toISOString(),
         descoberta: true,
-        history: [{ d: todayIso(), c: collation }],
+        history: [{ d: todayIso(), c: collationFinal }],
       };
 
       newOffers.push(offer);

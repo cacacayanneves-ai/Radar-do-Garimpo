@@ -37,11 +37,11 @@ export interface AdLibraryClient {
   // verdade, não um formulário de lead/quiz ou conteúdo de blog. Retorna
   // null se a página não carregar.
   fetchLandingPageText(url: string): Promise<string | null>;
-  // Conta quantos anúncios ativos do anunciante usam o mesmo texto de
-  // criativo — a medida de "quantos criativos estão rodando" usada na
-  // revalidação, onde não há página de busca pra contar. Usa a página que
-  // lista todos os anúncios da página do anunciante.
-  countAdvertiserCreatives(pageId: string, adText: string): Promise<number | null>;
+  // Quantos anúncios ativos o anunciante tem no total — lê o "~N
+  // resultados" que a própria Biblioteca mostra no topo da página dele.
+  // É a medida de "quantos criativos estão rodando" usada tanto pra
+  // ofertas novas quanto na revalidação.
+  countAdvertiserCreatives(pageId: string): Promise<number | null>;
   // Quantas vezes a Biblioteca de Anúncios respondeu exigindo captcha ou
   // com o payload vazio. Rodando de um IP de datacenter (ex: runner do
   // GitHub Actions) o Facebook trata a requisição diferente de um IP
@@ -173,6 +173,16 @@ function countMatchingCreativeCopies(html: string, anchorIdx: number): number | 
 // real é retornado.
 function isCaptchaRequired(html: string): boolean {
   return /"xfb_ad_library_is_captcha_required":true/.test(html);
+}
+
+// A Biblioteca mostra "~1.234 resultados" (ou "results") no topo de
+// qualquer página de busca — seja busca por palavra-chave (concorrência do
+// nicho) ou por anunciante (quantos anúncios ativos ele tem).
+function parseResultCount(bodyText: string): number | null {
+  const match = bodyText.match(/[~]?\s?([\d.,]+)\s*(resultados|results)/i);
+  if (!match) return null;
+  const numeric = parseInt(match[1].replace(/[.,]/g, ""), 10);
+  return Number.isNaN(numeric) ? null : numeric;
 }
 
 class PlaywrightAdLibraryClient implements AdLibraryClient {
@@ -344,12 +354,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       if (isCaptchaRequired(html)) this.blockStats.captcha++;
 
       const bodyText = await page.innerText("body").catch(() => "");
-      // Padrão típico: "~1.234 resultados" ou "1.234 results".
-      const match = bodyText.match(/[~]?\s?([\d.,]+)\s*(resultados|results)/i);
-      if (!match) return null;
-
-      const numeric = parseInt(match[1].replace(/[.,]/g, ""), 10);
-      return Number.isNaN(numeric) ? null : numeric;
+      return parseResultCount(bodyText);
     } catch {
       this.blockStats.navFailures++;
       return null;
@@ -358,10 +363,7 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
     }
   }
 
-  async countAdvertiserCreatives(pageId: string, adText: string): Promise<number | null> {
-    const targetNorm = normalizeCreativeText(adText);
-    if (!targetNorm) return null;
-
+  async countAdvertiserCreatives(pageId: string): Promise<number | null> {
     const context = await this.contextPromise;
     const page = await context.newPage();
     try {
@@ -372,25 +374,15 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
       await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT_MS });
       await randomDelay(800, 1600);
 
-      for (let i = 0; i < 3; i++) {
-        await page.mouse.wheel(0, 2400);
-        await randomDelay(400, 900);
-      }
-
       const html = await page.content();
       if (isCaptchaRequired(html)) this.blockStats.captcha++;
 
-      const ids = Array.from(new Set(Array.from(html.matchAll(/"ad_archive_id":"(\d+)"/g)).map((m) => m[1])));
-      if (ids.length === 0) {
-        this.blockStats.emptyPayload++;
-        return null;
-      }
-
-      let count = 0;
-      for (const id of ids) {
-        if (normalizeCreativeText(extractNearbyText(html, id)) === targetNorm) count++;
-      }
-      return count > 0 ? count : null;
+      // A própria Biblioteca já mostra "~N resultados" no topo da página do
+      // anunciante — é o número de anúncios ativos dele. Ler esse número é
+      // mais confiável (e mais barato) do que contar os cards carregados,
+      // que são paginados e ficam sempre subestimados.
+      const bodyText = await page.innerText("body").catch(() => "");
+      return parseResultCount(bodyText);
     } catch {
       this.blockStats.navFailures++;
       return null;

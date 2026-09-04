@@ -224,6 +224,18 @@ const NON_DIGITAL_SIGNALS = [
   "concurso petrobras",
   "apostila enem",
   "concurso enem",
+  // Software/ferramenta/licença — é produto digital, mas não é infoproduto
+  // (ex: speedcorel.com, que vende macro pro CorelDRAW). Fora do escopo.
+  "macro para corel",
+  "macros para corel",
+  "plugin para",
+  "licença de uso",
+  "licenca de uso",
+  "chave de ativação",
+  "chave de ativacao",
+  "instalador",
+  "versão vitalícia do software",
+  "assinatura mensal do sistema",
 ];
 
 // true = o texto tem um sinal forte de produto físico/serviço

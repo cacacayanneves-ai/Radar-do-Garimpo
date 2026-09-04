@@ -37,6 +37,6 @@ export interface MetaStatus {
   escalations: string[];
 }
 
-export type FilterKey = "todas" | "escalando" | "esfriando" | "novas";
+export type FilterKey = "top10" | "todas" | "escalando" | "esfriando" | "novas";
 
 export type SortKey = "opportunity" | "collation" | "delta" | "concorrencia";
