@@ -61,14 +61,16 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 - **Só três nichos** (definido em 04/09/2026, substituiu a lista antiga de
   nichos bons):
   1. **Saúde e bem-estar**, amplo — emagrecimento, treino, enfermagem, saúde
-     mental, terapias holísticas. Estética/beleza **não** conta como saúde.
+     mental, terapias holísticas.
   2. **Religião**.
   3. **Renda extra**, e isso **inclui artesanato e ofício**: crochê, costura,
-     papelaria de festa, confeitaria, elétrica, beleza — quem aprende pra
-     produzir e vender — além de vender online.
+     papelaria de festa, confeitaria, elétrica — quem aprende pra produzir e
+     vender — além de vender online.
 
   Fora do escopo: educação/pedagogia, idiomas, maternidade/gestação,
-  casamento, finanças pessoais, agro.
+  casamento, finanças pessoais, agro e **estética/beleza** (cílios,
+  sobrancelha, manicure, barbeiro, tatuagem — cortado explicitamente, nem
+  como saúde nem como ofício).
 - **Nunca WhatsApp** como destino. Só página de venda de verdade.
 - Ticket entre **R$9 e R$50**.
 - **Nada de concurso público** (mercado grande, dominado por players grandes) —

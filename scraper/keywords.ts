@@ -4,14 +4,15 @@
 //
 // ESCOPO (definido pelo Cayan em 04/09/2026): APENAS três nichos —
 //   1. SAÚDE E BEM-ESTAR (amplo: emagrecimento, treino, enfermagem, saúde
-//      mental, terapias holísticas). Estética/beleza não entra como saúde,
-//      mas entra como ofício em renda extra.
+//      mental, terapias holísticas).
 //   2. RELIGIÃO.
 //   3. RENDA EXTRA — inclui artesanato e ofício: quem aprende pra produzir e
-//      vender (crochê, costura, papelaria de festa, confeitaria, elétrica,
-//      beleza) e quem quer vender online.
+//      vender (crochê, costura, papelaria de festa, confeitaria, elétrica) e
+//      quem quer vender online.
 // Ficaram de fora, por não serem nenhum dos três: educação/pedagogia,
-// idiomas, maternidade/gestação, casamento, finanças pessoais, agro.
+// idiomas, maternidade/gestação, casamento, finanças pessoais, agro e
+// estética/beleza (cílios, sobrancelha, manicure, barbeiro, tatuagem) — esta
+// última o Cayan cortou explicitamente, nem como saúde nem como ofício.
 //
 // REGRA AO ADICIONAR KEYWORD: mantenha a frase CURTA. A busca da Biblioteca é
 // por frase exata, então "planner financeiro editável" volta ZERO enquanto
@@ -226,18 +227,6 @@ export const KEYWORDS: string[] = [
   "projetos de serralheria",
   "curso de adestramento online",
   "curso de jardinagem online",
-  // Beleza como ofício (renda extra, não como saúde)
-  "curso de extensão de cílios",
-  "curso de design de sobrancelhas",
-  "curso de alongamento de unhas",
-  "curso de manicure online",
-  "curso de maquiagem online",
-  "curso de micropigmentação",
-  "curso de barbeiro online",
-  "curso de corte masculino",
-  "spa dos pés curso",
-  "unhas decoradas",
-  "catálogo de tatuagem",
   // Serviços digitais
   "templates para Canva Instagram",
   "pack de stories editáveis",
