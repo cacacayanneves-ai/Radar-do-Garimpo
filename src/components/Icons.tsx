@@ -14,12 +14,15 @@ const base = {
   "aria-hidden": true,
 };
 
-export function IconMegafone() {
+// Livro aberto — usado pro link do anúncio específico na Biblioteca de
+// Anúncios. O ícone antigo (megafone desenhado como alto-falante) confundia
+// com "som"; livro casa com "biblioteca" e não repete a forma do ícone de
+// loja (todos os anúncios do anunciante).
+export function IconBiblioteca() {
   return (
     <svg {...base}>
-      <path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z" />
-      <path d="M15 8.5a4 4 0 0 1 0 7" />
-      <path d="M18 6a7 7 0 0 1 0 12" />
+      <path d="M12 7c-2.1-1.4-4.7-2-7-2v12.5c2.3 0 4.9.6 7 2 2.1-1.4 4.7-2 7-2V5c-2.3 0-4.9.6-7 2Z" />
+      <path d="M12 7v12.5" />
     </svg>
   );
 }

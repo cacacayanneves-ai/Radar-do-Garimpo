@@ -1,5 +1,5 @@
 import type { Offer } from "@/lib/types";
-import { IconLoja, IconLink, IconMegafone } from "./Icons";
+import { IconBiblioteca, IconLoja, IconLink } from "./Icons";
 
 export default function LinkButtons({ offer }: { offer: Offer }) {
   const adUrl = `https://www.facebook.com/ads/library/?id=${offer.libraryId}`;
@@ -14,7 +14,7 @@ export default function LinkButtons({ offer }: { offer: Offer }) {
         rel="noopener noreferrer"
         title="Anúncio na Biblioteca de Anúncios"
       >
-        <IconMegafone />
+        <IconBiblioteca />
       </a>
       <a
         className="icon-btn"
