@@ -168,6 +168,26 @@ body {
   background: linear-gradient(145deg, var(--brass-grad-a), var(--brass-grad-b));
   box-shadow: var(--shadow-pop);
   flex-shrink: 0;
+  /* A marca do radar é desenhada com currentColor — no fundo do gradiente
+     verde, preto dá o contraste certo. */
+  color: #08090c;
+}
+
+.radar-sweep {
+  transform-origin: 24px 24px;
+  animation: radar-spin 4s linear infinite;
+}
+
+@keyframes radar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep {
+    animation: none;
+  }
 }
 
 .brand-text h1 {
@@ -418,7 +438,10 @@ body {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 920px;
+  /* Menor depois de consolidar 9 colunas em 7 (No ar foi pra dentro da
+     célula da oferta; Links e Ações viraram uma coluna só) — assim a
+     tabela cabe na tela sem barra de rolagem lateral. */
+  min-width: 760px;
 }
 
 thead th {
@@ -758,8 +781,8 @@ tbody td {
 }
 
 .icon-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 9px;
   display: inline-flex;
   align-items: center;
@@ -768,17 +791,37 @@ tbody td {
   border: 1px solid var(--border);
   text-decoration: none;
   font-size: 13px;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  /* Contraste do ícone: antes era emoji (cor própria, sumia no escuro).
+     Agora é SVG com currentColor, então dá pra controlar aqui. */
+  color: var(--ink-muted);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, color 0.12s ease,
+    border-color 0.12s ease, background 0.12s ease;
 }
 
 .icon-btn:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-xs);
+  color: var(--ink);
+  border-color: var(--brass);
 }
 
 .actions-cell {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* Links (3 ícones) e ações (favoritar/descartar) dividem a mesma célula —
+   um separador sutil deixa claro que são grupos diferentes. */
+.actions-cell .links-cell {
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid var(--border);
+}
+
+.offer-dias {
+  color: var(--ink-muted);
+  opacity: 0.75;
 }
 
 .action-btn {
@@ -789,11 +832,13 @@ tbody td {
 .action-btn.active-fav {
   background: var(--brass-bg);
   border-color: var(--brass);
+  color: var(--brass);
 }
 
 .action-btn.active-discard {
   background: var(--clay-bg);
   border-color: var(--clay);
+  color: var(--clay);
 }
 
 .empty-state {
