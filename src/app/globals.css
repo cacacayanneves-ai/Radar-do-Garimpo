@@ -454,14 +454,6 @@ body {
   flex-wrap: wrap;
 }
 
-.nicho-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
 .controls {
   display: flex;
   align-items: center;

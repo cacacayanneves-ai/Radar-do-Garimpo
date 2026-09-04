@@ -45,7 +45,6 @@ export default function FilterTabs({
   return (
     <>
       <div className="nicho-row">
-        <span className="nicho-label">Nicho:</span>
         <div className="pill-group">
           {CATEGORIAS.map((c) => {
             const count = c.key === "todas" ? null : categoriaCounts[c.key];
