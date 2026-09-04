@@ -5,6 +5,7 @@ import DeltaBadge from "./DeltaBadge";
 import CompetitionBar from "./CompetitionBar";
 import Tags from "./Tags";
 import LinkButtons from "./LinkButtons";
+import { IconEstrela, IconLixeira, IconRestaurar } from "./Icons";
 
 const SORTABLE: { key: SortKey; label: string }[] = [
   { key: "collation", label: "Sinal (criativo)" },
@@ -50,9 +51,7 @@ export default function OffersTable({
                 <span className="arrow">{sortKey === s.key ? "▾" : ""}</span>
               </th>
             ))}
-            <th>No ar</th>
             <th>Tags</th>
-            <th>Links</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -72,7 +71,18 @@ export default function OffersTable({
                   <div className="offer-produto" title={o.produto}>
                     {o.produto}
                   </div>
-                  <div className="offer-anunciante">{o.anunciante}</div>
+                  <div className="offer-anunciante">
+                    {o.anunciante}
+                    {/* "No ar" mora aqui em vez de virar coluna própria —
+                        com 9 colunas a tabela não cabia na tela e criava
+                        barra de rolagem horizontal. */}
+                    {dias !== null ? (
+                      <span className="offer-dias">
+                        {" · "}
+                        {dias === 0 ? "no ar hoje" : `no ar há ${dias}d`}
+                      </span>
+                    ) : null}
+                  </div>
                 </td>
                 <td data-label="Ticket">
                   <span className={`ticket ${o.ticket ? "" : "empty"}`}>{o.ticket || "n/d"}</span>
@@ -89,24 +99,21 @@ export default function OffersTable({
                 <td data-label="Concorrência do nicho">
                   <CompetitionBar concorrencia={o.concorrencia} />
                 </td>
-                <td data-label="No ar" className="mono">
-                  {dias === null ? "n/d" : dias === 0 ? "hoje" : `${dias}d`}
-                </td>
                 <td data-label="Tags">
                   <Tags offer={o} />
                 </td>
-                <td data-label="Links">
-                  <LinkButtons offer={o} />
-                </td>
+                {/* Links e ações numa coluna só, pelo mesmo motivo: menos
+                    colunas = tabela cabe na tela sem rolagem lateral. */}
                 <td data-label="Ações">
                   <div className="actions-cell">
+                    <LinkButtons offer={o} />
                     <button
                       className={`icon-btn action-btn ${favorita ? "active-fav" : ""}`}
                       onClick={() => onToggleFavorita(o.id)}
                       title={favorita ? "Remover dos favoritos" : "Favoritar"}
                       aria-pressed={favorita}
                     >
-                      {favorita ? "⭐" : "☆"}
+                      <IconEstrela preenchida={favorita} />
                     </button>
                     <button
                       className={`icon-btn action-btn ${descartada ? "active-discard" : ""}`}
@@ -114,7 +121,7 @@ export default function OffersTable({
                       title={descartada ? "Restaurar" : "Descartar"}
                       aria-pressed={descartada}
                     >
-                      {descartada ? "↺" : "🗑"}
+                      {descartada ? <IconRestaurar /> : <IconLixeira />}
                     </button>
                   </div>
                 </td>
