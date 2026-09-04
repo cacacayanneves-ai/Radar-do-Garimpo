@@ -152,6 +152,18 @@ const DIGITAL_PRODUCT_SIGNALS = [
   "atividades para",
   "desenhos para",
   "prontas para imprimir",
+  // Termos que quase só aparecem em PÁGINA DE VENDA de infoproduto — o
+  // anúncio raramente diz o formato, a página sempre diz.
+  "área de membros",
+  "area de membros",
+  "baixe agora",
+  "baixar agora",
+  "videoaulas",
+  "vídeo aulas",
+  "video aulas",
+  "aulas gravadas",
+  "conteúdo digital",
+  "conteudo digital",
 ];
 
 const NON_DIGITAL_SIGNALS = [
@@ -545,6 +557,22 @@ export function isFacebookOwnedLink(url: string | null): boolean {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
     return FACEBOOK_OWNED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
+const APP_STORE_HOSTS = ["play.google.com", "apps.apple.com", "itunes.apple.com", "apple.co"];
+
+// Anúncio de app de celular não é oferta low ticket com página de venda —
+// é instalação de aplicativo. A página da loja ainda por cima contém
+// "download", que é um dos sinais de produto digital, então sem este filtro
+// ela passa batido (um jogo da Play Store chegou a ser aceito num teste).
+export function isAppStoreLink(url: string | null): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return APP_STORE_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
   } catch {
     return false;
   }

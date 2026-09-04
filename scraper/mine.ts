@@ -10,6 +10,7 @@ import {
   guessRiscoPolitica,
   hasDigitalProductSignal,
   hasNonDigitalSignal,
+  isAppStoreLink,
   isFacebookOwnedLink,
   isGenericInstagramProfile,
   isWhatsappLink,
@@ -184,6 +185,7 @@ interface FunnelStats {
   poucosCriativos: number;
   whatsapp: number;
   linkMeta: number;
+  appStore: number;
   instagram: number;
   semPageInfo: number;
   naoDigital: number;
@@ -203,7 +205,7 @@ interface FunnelStats {
 function novoFunnel(): FunnelStats {
   return {
     nichosPulados: 0, candidatos: 0, semLink: 0, poucosCriativos: 0, whatsapp: 0,
-    linkMeta: 0, instagram: 0, semPageInfo: 0, naoDigital: 0, ticketFora: 0,
+    linkMeta: 0, appStore: 0, instagram: 0, semPageInfo: 0, naoDigital: 0, ticketFora: 0,
     semSinalDigital: 0, duplicada: 0, landingRuim: 0, aceitas: 0,
     buscaVaziaPorTerco: [0, 0, 0],
   };
@@ -216,7 +218,7 @@ function resumirFunnel(f: FunnelStats, block: { captcha: number; emptyPayload: n
   const rejeicoes: [string, number][] = [
     ["nichos pulados", f.nichosPulados], ["sem link", f.semLink],
     ["poucos criativos", f.poucosCriativos], ["whatsapp", f.whatsapp],
-    ["link Meta", f.linkMeta], ["instagram", f.instagram],
+    ["link Meta", f.linkMeta], ["app store", f.appStore], ["instagram", f.instagram],
     ["sem page info", f.semPageInfo], ["não-digital", f.naoDigital],
     ["ticket fora", f.ticketFora], ["sem sinal digital", f.semSinalDigital],
     ["duplicada", f.duplicada], ["landing ruim", f.landingRuim],
@@ -439,7 +441,10 @@ async function mineNewOffers(
       continue;
     }
 
-    const candidates = await client.searchAds(keyword, 20);
+    // 30, não 20: a página de busca carrega ~30 anúncios e o corte em 20
+    // jogava fora um terço deles sem economizar requisição nenhuma (é a
+    // mesma página já baixada, só muda quantos ids são lidos do HTML).
+    const candidates = await client.searchAds(keyword, 30);
     await randomDelay(1200, 2200);
     if (candidates.length === 0) funnel.buscaVaziaPorTerco[terco]++;
 
@@ -479,6 +484,10 @@ async function mineNewOffers(
         funnel.linkMeta++;
         continue; // não é uma página de venda de verdade.
       }
+      if (isAppStoreLink(details.link)) {
+        funnel.appStore++;
+        continue; // instalação de app, não oferta com página de venda.
+      }
       if (isGenericInstagramProfile(details.link)) {
         funnel.instagram++;
         continue;
@@ -497,14 +506,6 @@ async function mineNewOffers(
       const ticket = extractTicket(combinedText);
       if (!ticketInRange(ticket)) {
         funnel.ticketFora++;
-        continue;
-      }
-
-      // Sem nenhuma evidência de que é infoproduto digital (nem palavra tipo
-      // "PDF"/"apostila", nem preço declarado low-ticket) — descarta, não dá
-      // pra confirmar que é o tipo de oferta que estamos garimpando.
-      if (!hasDigitalProductSignal(combinedText) && !ticket) {
-        funnel.semSinalDigital++;
         continue;
       }
 
@@ -571,6 +572,23 @@ async function mineNewOffers(
 
         const nomeReal = produtoFromTitle(landing.title);
         if (nomeReal) produto = nomeReal;
+      }
+
+      // Confirmação de que é infoproduto digital. Roda AQUI, sobre o texto do
+      // anúncio MAIS o da página de venda, porque o anúncio quase nunca diz o
+      // formato — ele é a isca ("descubra o método...") e quem diz "PDF",
+      // "acesso imediato", "área de membros" é a página. Rodando só sobre o
+      // anúncio, este filtro sozinho descartava 40% dos candidatos, boa parte
+      // deles oferta legítima.
+      //
+      // Basta uma das duas evidências: sinal digital no texto, OU preço real
+      // já confirmado dentro da faixa R$9–50 na página de venda (que também
+      // já passou por verifyLandingPage — não é blog, quiz, formulário de
+      // lead nem loja física).
+      const textoComLanding = `${combinedText} ${landing?.text ?? ""}`;
+      if (!hasDigitalProductSignal(textoComLanding) && precoDaPagina == null && !ticket) {
+        funnel.semSinalDigital++;
+        continue;
       }
 
       const ticketFinal = precoDaPagina != null ? formatPreco(precoDaPagina) : ticket;
