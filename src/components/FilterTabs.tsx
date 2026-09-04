@@ -46,7 +46,7 @@ export default function FilterTabs({
 
       {/* Sem o rótulo, os três números soltos não diziam a que se referiam. */}
       <div className="legend" title="Anúncios ativos no nicho — quanto menos, melhor">
-        <span className="legend-titulo">Concorrência do nicho:</span>
+        <span className="legend-titulo">Concorrência:</span>
         <span className="legend-item">
           <span className="legend-dot" style={{ background: "var(--moss)" }} />
           ≤350 baixa
