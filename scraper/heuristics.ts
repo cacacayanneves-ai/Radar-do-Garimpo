@@ -232,6 +232,72 @@ export function hasDigitalProductSignal(adText: string): boolean {
   return DIGITAL_PRODUCT_SIGNALS.some((t) => text.includes(t));
 }
 
+// Palavras que praticamente só existem em espanhol — usadas pra rejeitar
+// páginas de venda que na verdade são de outro mercado (mesmo anunciando
+// pra country=BR na Biblioteca de Anúncios, a página de destino real às
+// vezes não é localizada pro Brasil).
+const SPANISH_ONLY_SIGNALS = [
+  "responde",
+  "preguntas",
+  "descubre",
+  "empezar",
+  "cómo",
+  "haz clic",
+  "clic aquí",
+  "tú mismo",
+  "tu propia",
+  "más información",
+  "así es",
+];
+
+// Página que pede dados de contato pra "liberar" o conteúdo, em vez de
+// vender direto — formulário de captação de lead, não é a oferta se
+// vendendo sozinha.
+const LEAD_FORM_PAGE_SIGNALS = [
+  "preencha o formulário",
+  "preencha os dados",
+  "preencha seus dados",
+  "acesse o conteúdo",
+  "acesse o conteudo",
+  "receber comunicações",
+  "receber comunicacoes",
+  "nome*",
+  "telefone*",
+  "email*",
+];
+
+// Uma página de conteúdo/blog costuma linkar pra várias receitas/produtos
+// diferentes em vez de vender uma única oferta — várias ocorrências de
+// "veja aqui"/"confira aqui"/"baixe aqui"/"aprenda aqui" é um sinal forte
+// disso (visto na prática: um post de blog com N receitas diferentes, cada
+// uma linkando pra um e-book/página distinta).
+const CONTENT_HUB_LINK_PATTERN = /\b(veja|confira|aprenda|baixe)\s+(aqui|a receita)\b/gi;
+const CONTENT_HUB_MIN_OCCURRENCES = 3;
+
+export interface LandingPageVerdict {
+  ok: boolean;
+  reason?: "espanhol" | "formulario_de_lead" | "conteudo_de_blog";
+}
+
+export function verifyLandingPage(pageText: string): LandingPageVerdict {
+  const text = pageText.toLowerCase();
+
+  if (SPANISH_ONLY_SIGNALS.some((t) => text.includes(t))) {
+    return { ok: false, reason: "espanhol" };
+  }
+
+  if (LEAD_FORM_PAGE_SIGNALS.some((t) => text.includes(t))) {
+    return { ok: false, reason: "formulario_de_lead" };
+  }
+
+  const hubMatches = pageText.match(CONTENT_HUB_LINK_PATTERN);
+  if (hubMatches && hubMatches.length >= CONTENT_HUB_MIN_OCCURRENCES) {
+    return { ok: false, reason: "conteudo_de_blog" };
+  }
+
+  return { ok: true };
+}
+
 export function slugify(input: string): string {
   return input
     .normalize("NFD")

@@ -12,6 +12,7 @@ import {
   isGenericInstagramProfile,
   isWhatsappLink,
   ticketInRange,
+  verifyLandingPage,
 } from "./heuristics";
 import { deleteOffers, fetchCurrentOffers, updateStatus, upsertOffers, type UpsertOfferInput } from "./apiClient";
 import type { HistoryPoint } from "@/lib/types";
@@ -241,6 +242,18 @@ async function mineNewOffers(
       const urlKey = productUrlKey(details.pageId, details.link);
       const textKey = productTextKey(details.pageId, produto);
       if (trackedProductKeys.has(urlKey) || trackedProductKeys.has(textKey)) continue; // já rastreamos esse produto (outro criativo testando a mesma oferta).
+
+      // Última checagem, e a mais cara (visita a página de fora do
+      // facebook.com): confirma que a página de venda é mesmo uma página de
+      // venda — não um blog, formulário de lead/quiz, ou site em outro
+      // idioma. Fica por último de propósito, só roda pra quem já passou em
+      // tudo o resto.
+      const landingText = await client.fetchLandingPageText(details.link);
+      await randomDelay(600, 1200);
+      if (landingText) {
+        const verdict = verifyLandingPage(landingText);
+        if (!verdict.ok) continue;
+      }
 
       const id = generateOfferId(produto, details.pageName, candidate.libraryId);
 

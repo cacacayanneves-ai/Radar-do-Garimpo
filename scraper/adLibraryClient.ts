@@ -32,6 +32,11 @@ export interface AdLibraryClient {
   fetchAdDetails(libraryId: string): Promise<AdDetails | null>;
   searchAds(keyword: string, limit?: number): Promise<SearchResultCard[]>;
   searchCompetitionCount(keyword: string): Promise<number | null>;
+  // Visita a própria página de venda (fora do facebook.com) e retorna o
+  // texto visível dela — usado pra confirmar que é uma página de venda de
+  // verdade, não um formulário de lead/quiz ou conteúdo de blog. Retorna
+  // null se a página não carregar.
+  fetchLandingPageText(url: string): Promise<string | null>;
   close(): Promise<void>;
 }
 
@@ -229,6 +234,21 @@ class PlaywrightAdLibraryClient implements AdLibraryClient {
 
       const numeric = parseInt(match[1].replace(/[.,]/g, ""), 10);
       return Number.isNaN(numeric) ? null : numeric;
+    } catch {
+      return null;
+    } finally {
+      await page.close();
+    }
+  }
+
+  async fetchLandingPageText(url: string): Promise<string | null> {
+    const context = await this.contextPromise;
+    const page = await context.newPage();
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+      await randomDelay(600, 1200);
+      const text = await page.innerText("body").catch(() => "");
+      return text || null;
     } catch {
       return null;
     } finally {
