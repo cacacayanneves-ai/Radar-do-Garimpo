@@ -138,4 +138,6 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
 
 Favoritar/descartar ficam no `localStorage` (o site não tem login, então é por
 dispositivo — isso é intencional). Tema preto e verde, logo de radar, tabela que
-vira cards no celular, `noindex` ligado.
+vira cards no celular, `noindex` ligado. Filtro por nicho (Saúde/Religião/
+Renda extra) é independente da aba (Top 10, Escalando etc) e combina com
+ela — os dois filtram juntos, não um substitui o outro.
