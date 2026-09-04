@@ -1,9 +1,21 @@
-// Lista de keywords usadas na rotação circular de mineração de ofertas novas.
-// Índice inicial = dia do ano % KEYWORDS.length; cada rodada pega as 7
-// seguintes (circular). Lista expandida pelo Cayan — mantidas fora dela,
-// de propósito, as keywords de concurso público (apostila PRF/PMMA/
+// Lista de keywords usadas na rotação de mineração de ofertas novas. A rodada
+// varre a partir do cursor guardado no banco (ver keywordsFromCursor) até
+// bater o alvo de ofertas novas ou o teto de tempo.
+//
+// REGRA AO ADICIONAR KEYWORD: mantenha a frase CURTA. A busca da Biblioteca é
+// por frase exata, então "planner financeiro editável" volta ZERO enquanto
+// "planner financeiro" volta 30 anúncios. Auditada a lista inteira em
+// 04/09/2026: as 16 keywords que voltavam vazias eram todas frases longas com
+// "editável"/"digital" no fim — encurtá-las resolveu 20 delas. Antes de
+// incluir uma keyword nova, meça com scraper/auditarKeywords.ts; abaixo de
+// ~10 anúncios ela quase não paga o tempo que consome na rodada.
+//
+// Ficam fora de propósito as keywords de concurso público (apostila PRF/PMMA/
 // Petrobras/ENEM etc.): regra de negócio já confirmada é não minerar nesse
 // nicho (mercado grande/saturado, dominado por players grandes).
+//
+// Sazonais (páscoa, halloween) rendem pouco fora de época — é esperado, não
+// remova por causa disso.
 export const KEYWORDS: string[] = [
   "PDF por apenas",
   "guia completo por apenas",
@@ -31,10 +43,8 @@ export const KEYWORDS: string[] = [
   "moldes de roupas infantis",
   "moldes de bolsas",
   "moldes de vestidos",
-  "moldes de touca",
-  "moldes de chinelo",
+  "touca de crochê",
   "moldes editáveis Canva",
-  "moldes para Cricut",
   "kit festa infantil digital",
   "convites editáveis digital",
   "topo de bolo para imprimir",
@@ -46,8 +56,8 @@ export const KEYWORDS: string[] = [
   "kit digital de etiquetas",
   "planner para imprimir",
   "moldes de EVA",
-  "moldes de scrapbook",
-  "moldes de tag personalizada",
+  "scrapbook",
+  "tags personalizadas",
   "atividades de alfabetização",
   "consciência fonológica",
   "atividades para imprimir educação infantil",
@@ -78,27 +88,26 @@ export const KEYWORDS: string[] = [
   "curso de micropigmentação",
   "catequese atividades",
   "devocional católica",
-  "diário da mulher católica",
   "estudo bíblico em PDF",
   "abas divisórias para bíblia",
   "kit crochê católico",
   "cartão evangelismo digital",
   "escola dominical atividades",
   "roupinhas pet moldes",
-  "anatomia veterinária",
+  "apostila de veterinária",
   "doenças bovinas",
   "curso de adestramento online",
-  "moldes de roupa para cachorro",
+  "roupinha de cachorro",
   "projetos de serralheria",
   "curso de refrigeração",
-  "curso de ar condicionado",
+  "curso de climatização",
   "manual do eletricista",
   "projetos de marcenaria",
   "apostila de elétrica residencial",
   "mesa posta moldes",
   "arteterapia atividades",
   "harmonização facial estudo",
-  "planner financeiro editável",
+  "planner financeiro",
   "receitas de geladinho gourmet",
   "cardápio de confeitaria digital",
   "curso de brigadeiro gourmet",
@@ -109,7 +118,6 @@ export const KEYWORDS: string[] = [
   "curso de numerologia",
   "apostila de inglês",
   "curso de espanhol online",
-  "guia de caligrafia artística",
   "curso de desenho realista",
   "moldes de bordado",
 
@@ -117,17 +125,16 @@ export const KEYWORDS: string[] = [
   // ainda não estavam cobertos (maternidade, casamento, datas sazonais,
   // creator economy, finanças pessoais, journaling, neurodivergência,
   // ofícios adicionais).
-  "chá de bebê digital",
+  "chá de bebê",
   "diário da gestante",
-  "kit mesversário digital",
+  "mesversário",
   "planner de gravidez",
-  "álbum do bebê para imprimir",
-  "kit chá revelação digital",
-  "planner de casamento editável",
+  "álbum do bebê",
+  "chá revelação",
   "convites de casamento digital",
   "kit noiva digital",
-  "lista de convidados editável",
-  "livro de assinaturas para imprimir",
+  "lista de convidados",
+  "livro de assinaturas",
   "moldes de natal",
   "moldes de páscoa",
   "moldes de halloween",
@@ -137,15 +144,14 @@ export const KEYWORDS: string[] = [
   "templates para Canva Instagram",
   "pack de stories editáveis",
   "kit redes sociais digital",
-  "moldura para reels editável",
+  "moldura para reels",
   "planner de conteúdo editável",
   "planilha de controle financeiro",
-  "planilha de orçamento doméstico",
-  "planner de finanças pessoais",
+  "orçamento doméstico",
   "planilha de gastos mensais",
-  "bullet journal editável",
+  "bullet journal",
   "diário de gratidão para imprimir",
-  "planner de metas editável",
+  "planner de metas",
   "diário de autoconhecimento",
   "rotina visual autismo",
   "material PECS para imprimir",
@@ -153,11 +159,10 @@ export const KEYWORDS: string[] = [
   "material TDAH para imprimir",
   "curso de barbeiro online",
   "curso de corte masculino",
-  "catálogo de tatuagem digital",
-  "kit para tatuadores digital",
-  "moldes de unha decorada",
+  "catálogo de tatuagem",
+  "unhas decoradas",
   "cardápio digital editável",
-  "planner escolar editável",
+  "planner de estudos",
   "kit professor digital",
 ];
 
