@@ -32,6 +32,8 @@ export interface UpsertOfferInput {
   descoberta?: boolean;
   veiculacaoIniciada?: string | null;
   history?: HistoryPoint[];
+  strikes?: number;
+  strikeMotivo?: string | null;
 }
 
 export async function upsertOffers(offers: UpsertOfferInput[]) {

@@ -21,6 +21,8 @@ export function serializeOffer(o: PrismaOffer): Offer {
     descoberta: o.descoberta,
     veiculacaoIniciada: o.veiculacaoIniciada ? o.veiculacaoIniciada.toISOString() : null,
     history: (o.history as unknown as HistoryPoint[]) ?? [],
+    strikes: o.strikes,
+    strikeMotivo: o.strikeMotivo,
   };
 }
 

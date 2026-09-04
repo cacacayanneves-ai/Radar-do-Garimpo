@@ -47,6 +47,8 @@ function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[num
     descoberta: false,
     veiculacaoIniciada: offer.veiculacaoIniciada,
     history: offer.history,
+    strikes: offer.strikes,
+    strikeMotivo: offer.strikeMotivo,
   };
 }
 
@@ -72,6 +74,15 @@ const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
 const PRUNE_MIN_AGE_DAYS = 30;
 const PRUNE_MIN_CONCORRENCIA = 1200;
 const PRUNE_LOOKBACK_POINTS = 10;
+
+// Quantas rodadas SEGUIDAS precisam encontrar o mesmo problema antes de a
+// oferta sair do catálogo. Antes era 1 (removia na primeira leitura ruim) e
+// isso apagou oferta viva mais de uma vez: o Facebook bloqueia o robô de vez
+// em quando — a leitura do anúncio falha e parece "saiu do ar" — e site que
+// carrega por JavaScript às vezes devolve só o código, o que fazia a página
+// de venda parecer degradada. Com 8 rodadas ao dia, 3 strikes = problema
+// confirmado ao longo de ~9h, com leituras independentes.
+const PRUNE_STRIKES = 3;
 
 // Critério de entrada (só pra ofertas NOVAS — não reavalia quem já está no
 // catálogo, senão uma queda temporária no collation ia podar oferta que só
@@ -229,6 +240,15 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
   const toDelete: { id: string; motivo: string }[] = [];
   const toUpsert: UpsertOfferInput[] = [];
 
+  // Problemas encontrados nesta rodada. Não viram strike na hora: primeiro a
+  // rodada inteira termina, pra dar pra saber se o problema é da oferta ou
+  // do ambiente (ver ABORT_STRIKES_SE_ACIMA_DE lá embaixo).
+  const problemas: { offer: (typeof current)[number]; motivo: string }[] = [];
+
+  function registrarProblema(offer: (typeof current)[number], motivo: string) {
+    problemas.push({ offer, motivo });
+  }
+
   for (let i = 0; i < current.length; i += REVALIDATE_BATCH_SIZE) {
     const batch = current.slice(i, i + REVALIDATE_BATCH_SIZE);
 
@@ -237,17 +257,17 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       await randomDelay(700, 1500);
 
       if (!details || !details.link) {
-        toDelete.push({ id: offer.id, motivo: "anúncio saiu do ar" });
+        registrarProblema(offer, "anúncio saiu do ar");
         continue;
       }
 
       if (isWhatsappLink(details.link)) {
-        toDelete.push({ id: offer.id, motivo: "destino mudou para WhatsApp" });
+        registrarProblema(offer, "destino mudou para WhatsApp");
         continue;
       }
 
       if (isFacebookOwnedLink(details.link)) {
-        toDelete.push({ id: offer.id, motivo: "link passou a apontar pro próprio Facebook (não é página de venda)" });
+        registrarProblema(offer, "link passou a apontar pro próprio Facebook (não é página de venda)");
         continue;
       }
 
@@ -278,10 +298,7 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         neverEscalated(history);
 
       if (isOldAndCold) {
-        toDelete.push({
-          id: offer.id,
-          motivo: `esfriada — mais de ${PRUNE_MIN_AGE_DAYS} dias, alta concorrência, nunca escalou`,
-        });
+        registrarProblema(offer, `esfriada — mais de ${PRUNE_MIN_AGE_DAYS} dias, alta concorrência, nunca escalou`);
         continue;
       }
 
@@ -304,14 +321,14 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       if (landing) {
         const verdict = verifyLandingPage(landing.text, details.link);
         if (!verdict.ok) {
-          toDelete.push({ id: offer.id, motivo: `página de venda degradou (${verdict.reason})` });
+          registrarProblema(offer, `página de venda degradou (${verdict.reason})`);
           continue;
         }
 
         const precoAtual = extractPriceFromPage(landing.text);
         if (precoAtual != null) {
           if (!precoNaFaixa(precoAtual)) {
-            toDelete.push({ id: offer.id, motivo: `preço saiu da faixa (agora R$ ${precoAtual})` });
+            registrarProblema(offer, `preço saiu da faixa (agora R$ ${precoAtual})`);
             continue;
           }
           ticketAtualizado = formatPreco(precoAtual);
@@ -319,6 +336,12 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
 
         const nomeReal = produtoFromTitle(landing.title);
         if (nomeReal) produtoAtualizado = nomeReal;
+      }
+
+      // Passou em tudo: zera os strikes. Um problema passageiro numa rodada
+      // não pode ficar acumulado com outro daqui a três dias.
+      if (offer.strikes > 0) {
+        console.log(`Strikes zerados em ${offer.id} (antes: ${offer.strikes} — ${offer.strikeMotivo}).`);
       }
 
       toUpsert.push({
@@ -329,6 +352,8 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         ticket: ticketAtualizado,
         veiculacaoIniciada: veiculacaoIniciadaAtualizada,
         history,
+        strikes: 0,
+        strikeMotivo: null,
       });
       const revalidatedPageId = details.pageId ?? offer.pageId;
       trackedProductKeys.add(productUrlKey(revalidatedPageId, details.link));
@@ -338,6 +363,39 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
     if (i + REVALIDATE_BATCH_SIZE < current.length) {
       await new Promise((r) => setTimeout(r, REVALIDATE_BATCH_PAUSE_MS));
     }
+  }
+
+  // Trava de segurança: se MAIS DA METADE do catálogo deu problema na mesma
+  // rodada, o problema é do ambiente (Facebook bloqueando o robô, rede caindo),
+  // não das ofertas. Sem isso, um bloqueio geral daria strike em todo mundo ao
+  // mesmo tempo e em 3 rodadas o catálogo inteiro seria apagado.
+  const limiteDeSanidade = Math.max(1, Math.floor(current.length / 2));
+  if (problemas.length > limiteDeSanidade) {
+    console.warn(
+      `⚠️ ${problemas.length} de ${current.length} ofertas com problema nesta rodada — ` +
+        `acima do limite de ${limiteDeSanidade}. Tratando como falha de ambiente: ` +
+        `nenhum strike aplicado, nada removido.`
+    );
+    for (const { offer } of problemas) {
+      toUpsert.push(toUpsertInput(offer));
+    }
+    return { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report };
+  }
+
+  // Volume normal de problemas: acumula strike em cada uma, e só remove as
+  // que bateram o limite com o MESMO motivo em rodadas seguidas. Motivo
+  // diferente do anterior zera a contagem — senão dois problemas passageiros
+  // sem relação somariam até apagar uma oferta saudável.
+  for (const { offer, motivo } of problemas) {
+    const strikes = offer.strikeMotivo === motivo ? offer.strikes + 1 : 1;
+
+    if (strikes >= PRUNE_STRIKES) {
+      toDelete.push({ id: offer.id, motivo: `${motivo} (confirmado em ${strikes} rodadas seguidas)` });
+      continue;
+    }
+
+    console.log(`Strike ${strikes}/${PRUNE_STRIKES} em ${offer.id}: ${motivo}`);
+    toUpsert.push({ ...toUpsertInput(offer), strikes, strikeMotivo: motivo });
   }
 
   return { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report };

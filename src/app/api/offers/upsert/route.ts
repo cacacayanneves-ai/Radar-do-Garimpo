@@ -25,6 +25,8 @@ interface UpsertPayload {
   descoberta?: boolean;
   veiculacaoIniciada?: string | null;
   history?: HistoryPoint[];
+  strikes?: number;
+  strikeMotivo?: string | null;
 }
 
 const MAX_HISTORY_POINTS = 45;
@@ -71,6 +73,8 @@ async function upsertOne(o: UpsertPayload) {
       descoberta: o.descoberta ?? true,
       veiculacaoIniciada: o.veiculacaoIniciada ? new Date(o.veiculacaoIniciada) : null,
       history: history as unknown as Prisma.InputJsonValue,
+      strikes: o.strikes ?? 0,
+      strikeMotivo: o.strikeMotivo ?? null,
     },
     update: {
       niche: o.niche,
@@ -91,6 +95,8 @@ async function upsertOne(o: UpsertPayload) {
       // gravada quando uma rodada não conseguiu reler a página.
       veiculacaoIniciada: o.veiculacaoIniciada ? new Date(o.veiculacaoIniciada) : undefined,
       history: history as unknown as Prisma.InputJsonValue,
+      strikes: o.strikes ?? 0,
+      strikeMotivo: o.strikeMotivo ?? null,
     },
   });
 }

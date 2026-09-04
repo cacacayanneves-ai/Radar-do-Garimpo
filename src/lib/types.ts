@@ -26,6 +26,11 @@ export interface Offer {
   descoberta: boolean;
   veiculacaoIniciada: string | null; // ISO date — quando o anúncio começou a rodar no Facebook
   history: HistoryPoint[];
+  // Rodadas seguidas com o mesmo problema. Só é removida ao bater o limite —
+  // uma leitura ruim isolada (bloqueio do Facebook, site que carrega por JS)
+  // não apaga mais nada.
+  strikes: number;
+  strikeMotivo: string | null;
 }
 
 export interface MetaStatus {

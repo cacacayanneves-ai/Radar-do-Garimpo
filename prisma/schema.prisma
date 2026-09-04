@@ -47,6 +47,17 @@ model Offer {
   // Array de { d: "AAAA-MM-DD", c: number }, mantendo só os últimos 45 pontos.
   history Json @default("[]")
 
+  // Quantas rodadas SEGUIDAS encontraram o mesmo problema nesta oferta. Só
+  // some do catálogo quando bate o limite (ver PRUNE_STRIKES em mine.ts).
+  // Existe porque uma única leitura ruim não prova nada: o Facebook bloqueia
+  // o robô de vez em quando (aí a leitura falha e parecia "anúncio saiu do
+  // ar") e site que carrega por JavaScript às vezes devolve só o código (aí
+  // a página de venda parecia ter degradado). Nos dois casos a oferta estava
+  // viva e foi apagada por engano. Volta pra zero assim que uma rodada passa
+  // em tudo.
+  strikes      Int     @default(0)
+  strikeMotivo String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
