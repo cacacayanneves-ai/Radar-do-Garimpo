@@ -47,10 +47,12 @@ const MAX_HISTORY_POINTS = 45;
 const REVALIDATE_BATCH_SIZE = 12;
 const REVALIDATE_BATCH_PAUSE_MS = 4000;
 const TARGET_NEW_OFFERS = 30;
-// Quantas keywords da rotação são varridas por rodada. 7 rendia só ~13
-// ofertas (muita duplicata dentro do mesmo nicho), então varre mais nichos
-// até bater o alvo de 30 — o laço para sozinho ao atingir o alvo.
-const KEYWORDS_PER_ROUND = 20;
+// Quantas keywords da rotação são varridas por rodada. Medido na prática:
+// 20 keywords rendem ~7 ofertas novas e a rodada acaba em 26 min — ou
+// seja, ela termina por FALTA DE KEYWORD, não por tempo (o teto é 70 min).
+// Com 40, usa a folga e chega mais perto do alvo de 30 sem afrouxar
+// nenhum critério de qualidade. O laço para sozinho ao bater o alvo.
+const KEYWORDS_PER_ROUND = 40;
 const EFFORT_DEADLINE_MS = 70 * 60 * 1000; // teto de esforço: 70 min
 const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
