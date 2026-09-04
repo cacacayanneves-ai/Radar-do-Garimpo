@@ -47,6 +47,13 @@ const PRUNE_MIN_AGE_DAYS = 21;
 const PRUNE_MIN_CONCORRENCIA = 1200;
 const PRUNE_LOOKBACK_POINTS = 10;
 
+// Critério de entrada (só pra ofertas NOVAS — não reavalia quem já está no
+// catálogo, senão uma queda temporária no collation ia podar oferta que só
+// oscilou). Pedido explícito: só entra oferta com pelo menos 5 criativos
+// rodando ao mesmo tempo — sinal de que o anunciante já validou e está
+// duplicando/testando variações, não é só um teste solto.
+const MIN_COLLATION_FOR_NEW_OFFER = 5;
+
 // Nicho com concorrência acima disso é tratado como mercado grande/saturado
 // (dominado por players grandes) e nenhuma oferta NOVA é minerada dele —
 // mesmo limite que já divide "brass" de "clay" no painel (>900 = ruim).
@@ -216,6 +223,8 @@ async function mineNewOffers(
       const details = await client.fetchAdDetails(candidate.libraryId);
       await randomDelay(700, 1500);
       if (!details || !details.link) continue;
+
+      if ((details.collation ?? 0) < MIN_COLLATION_FOR_NEW_OFFER) continue; // poucos criativos rodando — ainda não validado.
 
       if (isWhatsappLink(details.link)) continue; // regra de negócio: nunca WhatsApp.
       if (isFacebookOwnedLink(details.link)) continue; // não é uma página de venda de verdade.
