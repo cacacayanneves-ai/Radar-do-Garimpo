@@ -98,10 +98,7 @@ export default function LiveDashboard({
       <StatTiles offers={offers} />
       <FilterTabs active={filter} onChange={setFilter} />
       <OffersTable offers={sorted} sortKey={sortKey} onSort={handleSort} />
-      <div className="footer">
-        Última mineração: {formatLastRun(status?.lastRun ?? null)}
-        {status?.lastRunNota ? ` — ${status.lastRunNota}` : ""}
-      </div>
+      <div className="footer">Última mineração: {formatLastRun(status?.lastRun ?? null)}</div>
     </div>
   );
 }
