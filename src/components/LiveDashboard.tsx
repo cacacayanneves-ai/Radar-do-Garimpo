@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FilterKey, MetaStatus, Offer, SortDir, SortKey, SortState } from "@/lib/types";
 import { computeDelta, diasNoAr, isNewThisWeek, opportunity, topScore } from "@/lib/compute";
 import { useLocalOfferSet } from "@/lib/useLocalOfferSet";
+import { categoriaDaNiche, type Categoria } from "@/lib/keywordCategorias";
 import Header from "./Header";
 import StatTiles from "./StatTiles";
 import FilterTabs from "./FilterTabs";
@@ -56,6 +57,9 @@ export default function LiveDashboard({
   const [offers, setOffers] = useState<Offer[]>(initialOffers);
   const [status, setStatus] = useState<MetaStatus | null>(initialStatus);
   const [filter, setFilter] = useState<FilterKey>("todas");
+  // Independente da aba (Top 10, Escalando etc) — os dois filtros se
+  // combinam, então "Top 10" + "Saúde" mostra as 10 melhores só de saúde.
+  const [categoria, setCategoria] = useState<Categoria | "todas">("todas");
   const [sort, setSort] = useState<SortState>({ key: "opportunity", dir: "desc" });
   // Alvo de rolagem: quando o usuário clica no tile "Maior escalada do dia",
   // a tabela rola até essa linha e pisca ela. O `seq` garante que clicar de
@@ -94,26 +98,34 @@ export default function LiveDashboard({
     [offers, descartados, filter]
   );
 
+  // Filtro de nicho aplicado ANTES da aba — assim "Top 10" já rankeia só
+  // dentro do nicho escolhido, em vez de pegar o Top 10 geral e depois
+  // filtrar (o que quase sempre daria menos de 10 linhas).
+  const porCategoria = useMemo(() => {
+    if (categoria === "todas") return visiveis;
+    return visiveis.filter((o) => categoriaDaNiche(o.niche) === categoria);
+  }, [visiveis, categoria]);
+
   const filtered = useMemo(() => {
     switch (filter) {
       case "top10":
         // As 10 de maior nota (ver topScore em lib/compute). A ordenação da
         // coluna escolhida continua valendo, mas só dentro dessas 10.
-        return [...visiveis].sort((a, b) => topScore(b) - topScore(a)).slice(0, 10);
+        return [...porCategoria].sort((a, b) => topScore(b) - topScore(a)).slice(0, 10);
       case "escalando":
-        return visiveis.filter((o) => (computeDelta(o) ?? 0) > 0);
+        return porCategoria.filter((o) => (computeDelta(o) ?? 0) > 0);
       case "esfriando":
-        return visiveis.filter((o) => (computeDelta(o) ?? 0) < 0);
+        return porCategoria.filter((o) => (computeDelta(o) ?? 0) < 0);
       case "novas":
-        return visiveis.filter(isNewThisWeek);
+        return porCategoria.filter(isNewThisWeek);
       case "favoritas":
-        return visiveis.filter((o) => favoritos.has(o.id));
+        return porCategoria.filter((o) => favoritos.has(o.id));
       case "descartadas":
-        return visiveis.filter((o) => descartados.has(o.id));
+        return porCategoria.filter((o) => descartados.has(o.id));
       default:
-        return visiveis;
+        return porCategoria;
     }
-  }, [visiveis, filter, favoritos, descartados]);
+  }, [porCategoria, filter, favoritos, descartados]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -145,11 +157,24 @@ export default function LiveDashboard({
   // o que está ativamente em radar — sem as descartadas.
   const ofertasAtivas = useMemo(() => offers.filter((o) => !descartados.has(o.id)), [offers, descartados]);
 
-  // Troca pro filtro "todas" pra garantir que a linha exista na tabela
-  // (senão um filtro ativo, tipo "Favoritas", poderia esconder a oferta que
-  // acabou de escalar) e pede pra tabela rolar até ela.
+  // Quantas ofertas ativas caem em cada nicho — mostrado ao lado do nome no
+  // seletor. Base é a mesma dos tiles do topo (sem descartadas).
+  const categoriaCounts = useMemo(() => {
+    const counts: Record<Categoria, number> = { saude: 0, religiao: 0, renda_extra: 0 };
+    for (const o of ofertasAtivas) {
+      const c = categoriaDaNiche(o.niche);
+      if (c) counts[c]++;
+    }
+    return counts;
+  }, [ofertasAtivas]);
+
+  // Troca pros filtros "todas" (aba e nicho) pra garantir que a linha exista
+  // na tabela (senão um filtro ativo, tipo "Favoritas" ou "Religião",
+  // poderia esconder a oferta que acabou de escalar) e pede pra tabela
+  // rolar até ela.
   function irParaOferta(offerId: string) {
     setFilter("todas");
+    setCategoria("todas");
     setScrollAlvo({ id: offerId, seq: Date.now() });
   }
 
@@ -160,6 +185,9 @@ export default function LiveDashboard({
       <FilterTabs
         active={filter}
         onChange={setFilter}
+        categoria={categoria}
+        onCategoriaChange={setCategoria}
+        categoriaCounts={categoriaCounts}
         favoritasCount={favoritos.ids.size}
         descartadasCount={descartados.ids.size}
       />

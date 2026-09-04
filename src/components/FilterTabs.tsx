@@ -1,4 +1,5 @@
 import type { FilterKey } from "@/lib/types";
+import { CATEGORIA_LABEL, type Categoria } from "@/lib/keywordCategorias";
 
 const TABS: { key: FilterKey; label: string; title?: string }[] = [
   { key: "todas", label: "Todas" },
@@ -14,19 +15,55 @@ const TABS: { key: FilterKey; label: string; title?: string }[] = [
   { key: "descartadas", label: "🗑 Descartadas", title: "As que você já revisou e descartou — fica salvo neste navegador" },
 ];
 
+// Filtro por nicho é INDEPENDENTE do filtro por aba (Top 10, Escalando etc)
+// — os dois se combinam. Ex: "Top 10" + "Saúde" mostra as 10 melhores
+// DENTRO só das ofertas de saúde, não o Top 10 geral filtrado depois.
+const CATEGORIAS: { key: Categoria | "todas"; label: string }[] = [
+  { key: "todas", label: "Todos os nichos" },
+  { key: "saude", label: CATEGORIA_LABEL.saude },
+  { key: "religiao", label: CATEGORIA_LABEL.religiao },
+  { key: "renda_extra", label: CATEGORIA_LABEL.renda_extra },
+];
+
 export default function FilterTabs({
   active,
   onChange,
+  categoria,
+  onCategoriaChange,
+  categoriaCounts,
   favoritasCount,
   descartadasCount,
 }: {
   active: FilterKey;
   onChange: (key: FilterKey) => void;
+  categoria: Categoria | "todas";
+  onCategoriaChange: (categoria: Categoria | "todas") => void;
+  categoriaCounts: Record<Categoria, number>;
   favoritasCount: number;
   descartadasCount: number;
 }) {
   return (
-    <div className="controls">
+    <>
+      <div className="nicho-row">
+        <span className="nicho-label">Nicho:</span>
+        <div className="pill-group">
+          {CATEGORIAS.map((c) => {
+            const count = c.key === "todas" ? null : categoriaCounts[c.key];
+            return (
+              <button
+                key={c.key}
+                className={categoria === c.key ? "active" : ""}
+                onClick={() => onCategoriaChange(c.key)}
+              >
+                {c.label}
+                {count !== null && count !== undefined ? ` (${count})` : ""}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="controls">
       <div className="pill-group">
         {TABS.map((t) => {
           const count = t.key === "favoritas" ? favoritasCount : t.key === "descartadas" ? descartadasCount : null;
@@ -60,6 +97,7 @@ export default function FilterTabs({
           &gt;900 alta
         </span>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

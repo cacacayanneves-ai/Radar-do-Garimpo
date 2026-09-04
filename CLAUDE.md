@@ -50,7 +50,10 @@ reintroduz a dependência que a regra número um proíbe.
    anúncio, contagem de criativos, abrir a página de venda).
 3. `heuristics.ts` — todos os filtros de conteúdo (é digital? é low ticket? a
    página de venda presta?).
-4. `keywords.ts` — a lista de nichos varridos.
+4. `keywords.ts` — monta a lista de busca a partir de
+   `src/lib/keywordCategorias.ts` (fonte única: keyword → categoria saúde /
+   religião / renda extra). O site importa do mesmo arquivo pra alimentar o
+   filtro de nicho no painel — editar keyword é lá, não em `keywords.ts`.
 5. `apiClient.ts` — grava no site pela API (`/api/offers/upsert`,
    `/api/offers/delete`, `/api/status/update`), autenticado por
    `SCRAPER_API_SECRET`.

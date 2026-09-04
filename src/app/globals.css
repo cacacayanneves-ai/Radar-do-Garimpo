@@ -444,6 +444,24 @@ body {
 
 /* ---------- Controls ---------- */
 
+/* Nicho fica numa linha própria, acima do resto dos filtros — é um filtro
+   independente (combina com Top 10, Escalando etc, não substitui). */
+.nicho-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.nicho-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .controls {
   display: flex;
   align-items: center;
