@@ -215,6 +215,15 @@ const NON_DIGITAL_SIGNALS = [
   "prova objetiva",
   "vestibular",
   "detran",
+  "simulado concurso",
+  "apostila concurso",
+  "questões comentadas",
+  "concurso prf",
+  "concurso pmma",
+  "concurso pm ",
+  "concurso petrobras",
+  "apostila enem",
+  "concurso enem",
 ];
 
 // true = o texto tem um sinal forte de produto físico/serviço
