@@ -7,10 +7,14 @@ import Tags from "./Tags";
 import LinkButtons from "./LinkButtons";
 import { IconEstrela, IconLixeira, IconRestaurar } from "./Icons";
 
-const SORTABLE: { key: SortKey; label: string }[] = [
-  { key: "collation", label: "Sinal (criativo)" },
-  { key: "delta", label: "Δ desde última leitura" },
-  { key: "concorrencia", label: "Concorrência do nicho" },
+// Rótulos curtos de propósito: como os cabeçalhos não quebram linha
+// (white-space: nowrap), eles é que definiam a largura mínima da tabela —
+// "Δ desde última leitura" sozinho empurrava a tabela pra fora da tela. O
+// significado completo fica no title (tooltip).
+const SORTABLE: { key: SortKey; label: string; title: string }[] = [
+  { key: "collation", label: "Sinal", title: "Quantos criativos o anunciante roda com esse mesmo texto" },
+  { key: "delta", label: "Δ", title: "Variação de criativos desde a última leitura" },
+  { key: "concorrencia", label: "Concorrência", title: "Quantos anúncios ativos existem no nicho" },
 ];
 
 export default function OffersTable({
@@ -46,11 +50,12 @@ export default function OffersTable({
             <th>Oferta</th>
             <th>Ticket</th>
             {SORTABLE.map((s) => (
-              <th key={s.key} className="sortable" onClick={() => onSort(s.key)}>
+              <th key={s.key} className="sortable" onClick={() => onSort(s.key)} title={s.title}>
                 {s.label}
                 <span className="arrow">{sortKey === s.key ? "▾" : ""}</span>
               </th>
             ))}
+            <th>No ar</th>
             <th>Tags</th>
             <th>Ações</th>
           </tr>
@@ -71,18 +76,7 @@ export default function OffersTable({
                   <div className="offer-produto" title={o.produto}>
                     {o.produto}
                   </div>
-                  <div className="offer-anunciante">
-                    {o.anunciante}
-                    {/* "No ar" mora aqui em vez de virar coluna própria —
-                        com 9 colunas a tabela não cabia na tela e criava
-                        barra de rolagem horizontal. */}
-                    {dias !== null ? (
-                      <span className="offer-dias">
-                        {" · "}
-                        {dias === 0 ? "no ar hoje" : `no ar há ${dias}d`}
-                      </span>
-                    ) : null}
-                  </div>
+                  <div className="offer-anunciante">{o.anunciante}</div>
                 </td>
                 <td data-label="Ticket">
                   <span className={`ticket ${o.ticket ? "" : "empty"}`}>{o.ticket || "n/d"}</span>
@@ -98,6 +92,13 @@ export default function OffersTable({
                 </td>
                 <td data-label="Concorrência do nicho">
                   <CompetitionBar concorrencia={o.concorrencia} />
+                </td>
+                {/* Tempo de veiculação do anunciante: sinal forte (anúncio
+                    que sustenta 2 meses no ar vale mais que um de 2 dias),
+                    então merece coluna própria em vez de ficar diluído na
+                    linha do anunciante. */}
+                <td data-label="No ar">
+                  <span className="dias-no-ar">{dias === null ? "n/d" : `${dias}d`}</span>
                 </td>
                 <td data-label="Tags">
                   <Tags offer={o} />

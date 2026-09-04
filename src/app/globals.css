@@ -554,14 +554,30 @@ tbody td {
   font-size: 13.5px;
 }
 
-/* ---------- Tabela em cards no mobile ---------- */
-/* Abaixo de 720px a tabela vira uma lista de cards empilhados — a versão
-   em linha/coluna com scroll horizontal é ruim de usar no celular. Cada
+/* Faixa intermediária: a tabela ainda cabe, mas só com o espaçamento
+   lateral menor — melhor comprimir do que devolver a barra de rolagem.
+   Abaixo de 1010px vira card (regra seguinte), que é o ponto em que as 8
+   colunas deixam de caber de vez. */
+@media (max-width: 1100px) {
+  thead th,
+  tbody td {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+
+  .competition-cell {
+    min-width: 110px;
+  }
+}
+
+/* ---------- Tabela em cards em tela estreita ---------- */
+/* Abaixo de 1010px a tabela vira uma lista de cards empilhados — é onde as
+   8 colunas deixam de caber, e rolar de lado é pior do que empilhar. Cada
    <td> ganha um rótulo (data-label, definido no JSX) à esquerda do valor;
    as células que são mais um bloco de conteúdo do que um par rótulo/valor
    (Oferta, Concorrência, Tags) ficam em largura cheia sem esse rótulo
    inline. */
-@media (max-width: 720px) {
+@media (max-width: 1010px) {
   .table-wrap {
     overflow-x: visible;
     background: transparent;
@@ -885,9 +901,12 @@ tbody td {
   border-right: 1px solid var(--border);
 }
 
-.offer-dias {
-  color: var(--ink-muted);
-  opacity: 0.75;
+.dias-no-ar {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 .action-btn {
