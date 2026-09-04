@@ -130,7 +130,11 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
   `domcontentloaded` o preço sai instável.
 - **O log do GitHub Actions exige login**, então você não consegue lê-lo. Por
   isso o funil da rodada é reportado em `GET /api/status` no campo
-  `diagnostico` — é essa a sua janela pra debugar uma rodada.
+  `diagnostico` — é essa a sua janela pra debugar uma rodada. Mas
+  `diagnostico` só guarda a ÚLTIMA rodada (a próxima sobrescreve) — pra saber
+  por que uma oferta específica sumiu, mesmo dias depois, use
+  `GET /api/podadas` (histórico permanente, tabela `PrunedOffer`, gravado em
+  `/api/offers/delete` antes do hard delete da Offer).
 - **Prévia de branch na Vercel fica protegida por SSO**; pra o Cayan ver, tem
   que estar na `main`.
 

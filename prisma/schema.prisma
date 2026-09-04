@@ -54,6 +54,27 @@ model Offer {
   @@map("offers")
 }
 
+// Histórico permanente de toda oferta removida do catálogo. A Offer em si é
+// apagada de vez (hard delete) quando sai — este registro fica pra sempre,
+// pra responder "por que essa oferta sumiu?" mesmo dias depois (o
+// diagnóstico da mineração, em MetaStatus, só guarda a última rodada; a
+// próxima rodada sobrescreve).
+model PrunedOffer {
+  id         String @id @default(cuid())
+  offerId    String
+  produto    String
+  anunciante String
+  niche      String
+  vendaUrl   String
+  libraryId  String
+  motivo     String
+
+  podadoEm DateTime @default(now())
+
+  @@index([podadoEm])
+  @@map("pruned_offers")
+}
+
 // Documento único (singleton) com o resumo da última rodada de mineração.
 model MetaStatus {
   id            String   @id @default("singleton")

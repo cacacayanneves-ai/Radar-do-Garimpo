@@ -47,12 +47,12 @@ export async function upsertOffers(offers: UpsertOfferInput[]) {
   return res.json();
 }
 
-export async function deleteOffers(ids: string[]) {
-  if (ids.length === 0) return { deleted: 0 };
+export async function deleteOffers(items: { id: string; motivo: string }[]) {
+  if (items.length === 0) return { deleted: 0 };
   const res = await fetch(`${SITE_URL}/api/offers/delete`, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify({ ids }),
+    body: JSON.stringify({ items }),
   });
   if (!res.ok) {
     throw new Error(`Falha ao remover ofertas (${res.status}): ${await res.text()}`);

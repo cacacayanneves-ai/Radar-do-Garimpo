@@ -625,9 +625,8 @@ async function main() {
       await upsertOffers(newOffers);
     }
 
-    const deleteIds = toDelete.map((d) => d.id);
-    if (deleteIds.length > 0) {
-      await deleteOffers(deleteIds);
+    if (toDelete.length > 0) {
+      await deleteOffers(toDelete);
     }
     report.podadas = toDelete;
 
