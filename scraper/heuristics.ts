@@ -462,8 +462,11 @@ const OFERTA_GRATUITA_SIGNALS = [
   "curso grátis",
   "curso 100% grátis",
   "liberar curso grátis",
-  "acesso gratuito",
-  "acesso 100% gratuito",
+  // "acesso gratuito" saiu da lista: pegou o "Mapa da Bíblia" (R$29,90 de
+  // verdade) por causa de "receba 1 mês de acesso gratuito ao app" — um
+  // BÔNUS dentro de oferta paga, não o produto principal de graça. As
+  // frases que sobraram são específicas o bastante ("CURSO gratuito/grátis")
+  // pra não confundir com bônus secundário.
 ];
 
 export function pareceOfertaGratuita(pageText: string): boolean {
