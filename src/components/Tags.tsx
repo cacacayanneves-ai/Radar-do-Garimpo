@@ -8,6 +8,8 @@ export default function Tags({ offer }: { offer: Offer }) {
     tags.push({ key: "intl", label: "Fora do BR: alta", cls: "teal" });
   } else if (offer.internacional === "Media") {
     tags.push({ key: "intl", label: "Fora do BR: média", cls: "teal" });
+  } else if (offer.internacional === "Baixa") {
+    tags.push({ key: "intl", label: "Fora do BR: baixa", cls: "plum" });
   }
 
   if (offer.riscoPolitica) {
