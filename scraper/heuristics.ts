@@ -375,6 +375,13 @@ const PHYSICAL_STORE_SIGNALS = [
   "produtos fisicos",
   "produto físico",
   "produto fisico",
+  // Login de lojista/atacado — praticamente exclusivo de loja física com
+  // catálogo (armarinho, papelaria, material de costura). Pegou uma página
+  // de barbante (fio de crochê físico) que tinha preço na faixa R$9-50 e
+  // passava só por isso, mesmo sem ser produto digital nenhum.
+  "login lojista",
+  "área do lojista",
+  "area do lojista",
   "política de frete",
   "politica de frete",
   "calcular frete",
@@ -420,7 +427,31 @@ export interface LandingPageVerdict {
     | "quiz_de_captacao"
     | "loja_fisica"
     | "outro_idioma"
+    | "oferta_gratuita"
     | "pagina_de_busca";
+}
+
+// Frases fortes de "o conteúdo principal é de graça" — não é o mesmo que
+// "ganhe um bônus grátis" (que é secundário, dentro de uma oferta paga de
+// verdade). Pegou um "Curso Gratuito" com certificado que passava porque
+// tinha palavra de formato digital no texto mas nenhum preço extraído — sem
+// preço, nada barrava a oferta grátis, e ela quebra a regra de R$9-50 na
+// raiz: não é baixo ticket, é isca sem cobrança nenhuma.
+const OFERTA_GRATUITA_SIGNALS = [
+  "curso gratuito",
+  "curso 100% gratuito",
+  "totalmente gratuito",
+  "gratuito com certificado",
+  "curso grátis",
+  "curso 100% grátis",
+  "liberar curso grátis",
+  "acesso gratuito",
+  "acesso 100% gratuito",
+];
+
+export function pareceOfertaGratuita(pageText: string): boolean {
+  const text = pageText.toLowerCase();
+  return OFERTA_GRATUITA_SIGNALS.some((t) => text.includes(t));
 }
 
 export function verifyLandingPage(pageText: string, url?: string): LandingPageVerdict {
@@ -428,6 +459,10 @@ export function verifyLandingPage(pageText: string, url?: string): LandingPageVe
 
   if (pareceOutroIdioma(pageText)) {
     return { ok: false, reason: "outro_idioma" };
+  }
+
+  if (pareceOfertaGratuita(pageText)) {
+    return { ok: false, reason: "oferta_gratuita" };
   }
 
   if (LEAD_FORM_PAGE_SIGNALS.some((t) => text.includes(t))) {
