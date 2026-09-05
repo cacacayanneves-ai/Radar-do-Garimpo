@@ -367,6 +367,23 @@ export function pareceOutroIdioma(pageText: string): boolean {
   return true;
 }
 
+// Confirma que a frase aparece SEM negação logo antes ("não", "nao", "sem")
+// — uma página de infoproduto de verdade costuma dizer explicitamente "isso
+// NÃO é um produto físico" pra tranquilizar o comprador, e um match de texto
+// simples lê isso como se a página estivesse AFIRMANDO ser produto físico.
+// Pegou "Bordando com Fé" (100 riscos católicos em PDF), que dizia "não
+// enviamos... produtos físicos" e "não é um produto físico: você recebe o
+// PDF por e-mail" — o oposto do que a página realmente diz.
+function temSinalAfirmativo(text: string, sinal: string): boolean {
+  let i = text.indexOf(sinal);
+  while (i !== -1) {
+    const antes = text.slice(Math.max(0, i - 45), i);
+    if (!/\b(não|nao|nunca|sem|nenhum|nenhuma)\b/.test(antes)) return true;
+    i = text.indexOf(sinal, i + 1);
+  }
+  return false;
+}
+
 const PHYSICAL_STORE_SIGNALS = [
   // Loja com catálogo de produto físico — não é uma oferta única que vende
   // por si só. Pegou o ateliermaosdemaria.com, que lista "PRODUTOS FÍSICOS"
@@ -473,7 +490,7 @@ export function verifyLandingPage(pageText: string, url?: string): LandingPageVe
     return { ok: false, reason: "quiz_de_captacao" };
   }
 
-  if (PHYSICAL_STORE_SIGNALS.some((t) => text.includes(t))) {
+  if (PHYSICAL_STORE_SIGNALS.some((t) => temSinalAfirmativo(text, t))) {
     return { ok: false, reason: "loja_fisica" };
   }
 
