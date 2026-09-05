@@ -274,6 +274,16 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
         continue;
       }
 
+      if (isAppStoreLink(details.link)) {
+        registrarProblema(offer, "destino mudou para loja de app (Play Store/App Store)");
+        continue;
+      }
+
+      if (isGenericInstagramProfile(details.link)) {
+        registrarProblema(offer, "destino é perfil do Instagram, não página de venda");
+        continue;
+      }
+
       // O número de criativos é o dado que alimenta o histórico e, por
       // consequência, todo o "está escalando ou não" do painel. A página de
       // detalhe nem sempre informa (nem sempre lista os anúncios
