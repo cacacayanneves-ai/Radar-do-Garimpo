@@ -75,7 +75,12 @@ Comandos: `npm run mine` (minerar), `npm run dev`, `npm run db:deploy`
   Fora do escopo: educação/pedagogia, idiomas, maternidade/gestação,
   casamento, finanças pessoais, agro e **estética/beleza** (cílios,
   sobrancelha, manicure, barbeiro, tatuagem — cortado explicitamente, nem
-  como saúde nem como ofício).
+  como saúde nem como ofício). Também fora, cortado em 04/09/2026: material
+  de aula de ministério infantil/escola dominical (é pedagogia com tema
+  religioso, não devocional de uso pessoal) e curso genérico de "ganhar
+  dinheiro online" (vender no Mercado Livre/Shopee, afiliado, dropshipping,
+  marketing digital — o Cayan quer sub-nicho específico de produto, não
+  método amplo de e-commerce).
 - **Nunca WhatsApp** como destino. Só página de venda de verdade.
 - Ticket entre **R$9 e R$50**.
 - **Nada de concurso público** (mercado grande, dominado por players grandes) —
