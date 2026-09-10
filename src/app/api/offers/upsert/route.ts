@@ -40,8 +40,8 @@ function validate(o: UpsertPayload): string | null {
   if (!o.libraryId) return "libraryId é obrigatório";
   if (!o.pageId) return "pageId é obrigatório";
   if (!o.primeiraDeteccao) return "primeiraDeteccao é obrigatório";
-  if (o.destino !== "sales_page") {
-    return `destino inválido ("${o.destino}") — apenas "sales_page" é aceito (regra de negócio: nunca WhatsApp).`;
+  if (o.destino !== "sales_page" && o.destino !== "quiz") {
+    return `destino inválido ("${o.destino}") — apenas "sales_page" ou "quiz" são aceitos.`;
   }
   if (o.vendaUrl.includes("api.whatsapp.com/send")) {
     return "vendaUrl aponta para WhatsApp — rejeitado por regra de negócio.";
@@ -60,7 +60,7 @@ async function upsertOne(o: UpsertPayload) {
       produto: o.produto,
       anunciante: o.anunciante,
       ticket: o.ticket ?? null,
-      destino: "sales_page",
+      destino: o.destino,
       vendaUrl: o.vendaUrl,
       libraryId: o.libraryId,
       pageId: o.pageId,
@@ -81,7 +81,7 @@ async function upsertOne(o: UpsertPayload) {
       produto: o.produto,
       anunciante: o.anunciante,
       ticket: o.ticket ?? null,
-      destino: "sales_page",
+      destino: o.destino,
       vendaUrl: o.vendaUrl,
       libraryId: o.libraryId,
       pageId: o.pageId,

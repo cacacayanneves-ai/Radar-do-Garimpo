@@ -199,10 +199,40 @@ export const KEYWORD_GROUPS: Record<Categoria, string[]> = {
   ],
 };
 
+// Keywords focadas em funil de QUIZ, medidas com scraper/auditarKeywords.ts
+// em 09/09/2026 (todas com ≥10 anúncios reais na Biblioteca de Anúncios no
+// momento da medição — mesmo piso usado pras keywords de PV). Lista separada
+// de KEYWORD_GROUPS porque tem rotação própria (scraper/keywords.ts) desde
+// que a mineração passou a ter um alvo (PV ou Quiz) escolhido pelo botão no
+// painel — mas entra no mesmo LOOKUP abaixo, pra oferta de Quiz também
+// aparecer certa no filtro de nicho do site.
+export const QUIZ_KEYWORD_GROUPS: Record<Categoria, string[]> = {
+  saude: [
+    "quiz emagrecimento",
+    "descubra sua dieta",
+    "teste de metabolismo",
+    "quiz nutricional",
+    "quiz de saúde",
+    "quiz fitness",
+    "qual seu tipo de corpo",
+    "teste de ansiedade",
+  ],
+  religiao: [
+    "quiz bíblico",
+    "quiz sobre a bíblia",
+    "teste seu conhecimento bíblico",
+    "teste de fé cristã",
+    "descubra qual apóstolo",
+    "quiz de fé",
+    "qual profeta bíblico",
+  ],
+  renda_extra: ["teste vocacional", "quiz empreendedor", "teste de personalidade"],
+};
+
 const LOOKUP: Record<string, Categoria> = Object.fromEntries(
-  (Object.entries(KEYWORD_GROUPS) as [Categoria, string[]][]).flatMap(([categoria, keywords]) =>
-    keywords.map((k) => [k, categoria] as const)
-  )
+  (Object.entries(KEYWORD_GROUPS) as [Categoria, string[]][])
+    .concat(Object.entries(QUIZ_KEYWORD_GROUPS) as [Categoria, string[]][])
+    .flatMap(([categoria, keywords]) => keywords.map((k) => [k, categoria] as const))
 );
 
 // Uma oferta guarda em `niche` a keyword exata que a achou. Se a keyword não

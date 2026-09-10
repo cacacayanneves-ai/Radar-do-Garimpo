@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Destino } from "@/lib/types";
 import { IconRecarregar } from "./Icons";
+import MiningTargetToggle from "./MiningTargetToggle";
 
 // Marca do radar: círculos concêntricos, varredura e dois blips. Desenhada
 // em SVG (não emoji) pra herdar a cor do tema e ficar nítida em qualquer
@@ -28,7 +30,15 @@ function RadarMark() {
   );
 }
 
-export default function Header({ offersCount }: { offersCount: number }) {
+export default function Header({
+  offersCount,
+  miningTarget,
+  onMiningTargetChange,
+}: {
+  offersCount: number;
+  miningTarget: Destino;
+  onMiningTargetChange: (destino: Destino) => void;
+}) {
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
   const [recarregando, setRecarregando] = useState(false);
 
@@ -70,6 +80,7 @@ export default function Header({ offersCount }: { offersCount: number }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <MiningTargetToggle miningTarget={miningTarget} onChange={onMiningTargetChange} />
         <div className="status-pill">
           <span className="dot-live" />
           {offersCount} {offersCount === 1 ? "oferta" : "ofertas"} sob vigilância

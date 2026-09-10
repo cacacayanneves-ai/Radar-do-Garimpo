@@ -19,6 +19,8 @@ export async function GET() {
       escalations: [],
       diagnostico: "",
       keywordCursor: 0,
+      miningTarget: "quiz",
+      keywordCursorQuiz: 0,
     });
   }
 

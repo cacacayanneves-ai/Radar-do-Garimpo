@@ -463,6 +463,19 @@ body {
   margin-bottom: 16px;
 }
 
+.mining-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mining-target-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
 .pill-group {
   display: inline-flex;
   flex-wrap: wrap;

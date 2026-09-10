@@ -8,7 +8,7 @@ export function serializeOffer(o: PrismaOffer): Offer {
     produto: o.produto,
     anunciante: o.anunciante,
     ticket: o.ticket,
-    destino: "sales_page",
+    destino: o.destino as Offer["destino"],
     vendaUrl: o.vendaUrl,
     libraryId: o.libraryId,
     pageId: o.pageId,
@@ -37,5 +37,7 @@ export function serializeStatus(s: PrismaMetaStatus): MetaStatus {
     escalations: (s.escalations as unknown as string[]) ?? [],
     diagnostico: s.diagnostico,
     keywordCursor: s.keywordCursor,
+    miningTarget: s.miningTarget as MetaStatus["miningTarget"],
+    keywordCursorQuiz: s.keywordCursorQuiz,
   };
 }

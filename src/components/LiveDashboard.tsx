@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FilterKey, MetaStatus, Offer, SortDir, SortKey, SortState } from "@/lib/types";
+import type { Destino, FilterKey, MetaStatus, Offer, SortDir, SortKey, SortState } from "@/lib/types";
 import { computeDelta, diasNoAr, isNewThisWeek, opportunity, topScore } from "@/lib/compute";
 import { useLocalOfferSet } from "@/lib/useLocalOfferSet";
 import { categoriaDaNiche, type Categoria } from "@/lib/keywordCategorias";
@@ -60,6 +60,10 @@ export default function LiveDashboard({
   // Independente da aba (Top 10, Escalando etc) — os dois filtros se
   // combinam, então "Top 10" + "Saúde" mostra as 10 melhores só de saúde.
   const [categoria, setCategoria] = useState<Categoria | "todas">("todas");
+  // PV é o catálogo original (congelado a partir de 09/09/2026, só
+  // revalidado); Quiz é o que a mineração busca agora. Começa em "sales_page"
+  // pra não mudar a visão de quem já usa o painel — troca pra "quiz" manual.
+  const [destino, setDestino] = useState<Destino>("sales_page");
   const [sort, setSort] = useState<SortState>({ key: "opportunity", dir: "desc" });
   // Alvo de rolagem: quando o usuário clica no tile "Maior escalada do dia",
   // a tabela rola até essa linha e pisca ela. O `seq` garante que clicar de
@@ -90,12 +94,16 @@ export default function LiveDashboard({
     };
   }, []);
 
+  // Filtro de destino (PV/Quiz) é o mais externo de todos — igual nicho e
+  // aba, combina com eles em vez de substituir.
+  const porDestino = useMemo(() => offers.filter((o) => o.destino === destino), [offers, destino]);
+
   // Descartada some de toda visão, exceto da própria aba "Descartadas" —
   // é assim que a lista deixa de mostrar sempre as mesmas ofertas que você
   // já revisou.
   const visiveis = useMemo(
-    () => (filter === "descartadas" ? offers : offers.filter((o) => !descartados.has(o.id))),
-    [offers, descartados, filter]
+    () => (filter === "descartadas" ? porDestino : porDestino.filter((o) => !descartados.has(o.id))),
+    [porDestino, descartados, filter]
   );
 
   // Filtro de nicho aplicado ANTES da aba — assim "Top 10" já rankeia só
@@ -154,8 +162,20 @@ export default function LiveDashboard({
   }
 
   // Os tiles do topo (e o "N ofertas sob vigilância" do header) refletem só
-  // o que está ativamente em radar — sem as descartadas.
-  const ofertasAtivas = useMemo(() => offers.filter((o) => !descartados.has(o.id)), [offers, descartados]);
+  // o que está ativamente em radar dentro do destino escolhido — sem as
+  // descartadas.
+  const ofertasAtivas = useMemo(() => porDestino.filter((o) => !descartados.has(o.id)), [porDestino, descartados]);
+
+  // Contagem por destino (PV/Quiz) pro toggle — sempre sobre os DOIS
+  // destinos juntos (não filtra pelo destino escolhido, senão o outro lado
+  // do toggle sempre mostraria 0).
+  const destinoCounts = useMemo(() => {
+    const counts: Record<Destino, number> = { sales_page: 0, quiz: 0 };
+    for (const o of offers) {
+      if (!descartados.has(o.id)) counts[o.destino]++;
+    }
+    return counts;
+  }, [offers, descartados]);
 
   // Quantas ofertas ativas caem em cada nicho — mostrado ao lado do nome no
   // seletor. Base é a mesma dos tiles do topo (sem descartadas).
@@ -180,7 +200,11 @@ export default function LiveDashboard({
 
   return (
     <div className="page">
-      <Header offersCount={ofertasAtivas.length} />
+      <Header
+        offersCount={ofertasAtivas.length}
+        miningTarget={(status?.miningTarget as Destino) ?? "quiz"}
+        onMiningTargetChange={(mt) => setStatus((s) => (s ? { ...s, miningTarget: mt } : s))}
+      />
       <StatTiles offers={ofertasAtivas} onIrParaOferta={irParaOferta} />
       <FilterTabs
         active={filter}
@@ -188,6 +212,9 @@ export default function LiveDashboard({
         categoria={categoria}
         onCategoriaChange={setCategoria}
         categoriaCounts={categoriaCounts}
+        destino={destino}
+        onDestinoChange={setDestino}
+        destinoCounts={destinoCounts}
         favoritasCount={favoritos.ids.size}
         descartadasCount={descartados.ids.size}
       />

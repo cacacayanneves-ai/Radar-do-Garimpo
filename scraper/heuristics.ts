@@ -101,11 +101,13 @@ export function extractTicket(adText: string): string | null {
   return `R$ ${match[1].replace(".", ",")}`;
 }
 
-export function ticketInRange(ticket: string | null): boolean {
+// tetoMax: 50 pra PV (low-ticket, regra original), 300 pra Quiz (pedido do
+// Cayan em 09/09/2026 — quiz pode ter ticket mais alto).
+export function ticketInRange(ticket: string | null, tetoMax = 50): boolean {
   if (!ticket) return true; // sem preço declarado — aceito se o formato indicar low-ticket.
   const value = parseFloat(ticket.replace("R$", "").replace(",", ".").trim());
   if (Number.isNaN(value)) return true;
-  return value >= 9 && value <= 50;
+  return value >= 9 && value <= tetoMax;
 }
 
 // A busca por palavra-chave da Biblioteca de Anúncios é solta — ela traz
@@ -265,12 +267,40 @@ const NON_DIGITAL_SIGNALS = [
   "assinatura mensal do sistema",
 ];
 
+// Frases de captação de lead que são o comportamento NORMAL de um funil de
+// quiz (o quiz sempre termina pedindo nome/telefone/e-mail pra liberar o
+// resultado) — em modo quiz elas não podem contar como "sinal de produto
+// físico/serviço", senão todo quiz de verdade seria descartado na entrada.
+const LEAD_CAPTURE_SIGNALS_OK_PARA_QUIZ = new Set([
+  "preencha o formulário",
+  "preencha o formulario",
+  "cadastre-se agora",
+  "cadastre-se gratuitamente",
+  "deixe seus dados",
+  "deixe seu contato",
+  "receba uma ligação",
+  "receba uma ligacao",
+  "fale com um consultor",
+  "fale com um especialista",
+  "agende uma consulta",
+  "agende uma call",
+  "solicite um orçamento",
+  "solicite um orcamento",
+  "orçamento sem compromisso",
+  "orcamento sem compromisso",
+  "inscreva-se para saber mais",
+]);
+
 // true = o texto tem um sinal forte de produto físico/serviço
 // presencial/oferta financeira — nesse caso o candidato é sempre descartado,
 // mesmo que também tenha um preço declarado ou uma palavra "digital" solta.
-export function hasNonDigitalSignal(adText: string): boolean {
+export function hasNonDigitalSignal(adText: string, opts?: { modo?: "sales_page" | "quiz" }): boolean {
   const text = adText.toLowerCase();
-  return NON_DIGITAL_SIGNALS.some((t) => text.includes(t));
+  const signals =
+    opts?.modo === "quiz"
+      ? NON_DIGITAL_SIGNALS.filter((t) => !LEAD_CAPTURE_SIGNALS_OK_PARA_QUIZ.has(t))
+      : NON_DIGITAL_SIGNALS;
+  return signals.some((t) => text.includes(t));
 }
 
 // true = o texto menciona explicitamente um formato de material digital
@@ -442,6 +472,7 @@ export interface LandingPageVerdict {
     | "formulario_de_lead"
     | "conteudo_de_blog"
     | "quiz_de_captacao"
+    | "sem_quiz"
     | "loja_fisica"
     | "outro_idioma"
     | "oferta_gratuita"
@@ -474,7 +505,18 @@ export function pareceOfertaGratuita(pageText: string): boolean {
   return OFERTA_GRATUITA_SIGNALS.some((t) => text.includes(t));
 }
 
-export function verifyLandingPage(pageText: string, url?: string): LandingPageVerdict {
+// modo "sales_page" (padrão): página de venda direta — quiz e formulário de
+// lead são rejeitados, porque a oferta tem que vender por si só.
+// modo "quiz": pedido do Cayan em 09/09/2026 — agora é o INVERSO. A página
+// TEM que ser um funil de quiz (senão não é o que estamos minerando), e
+// formulário de lead no fim do quiz é o comportamento esperado, não motivo
+// de rejeição.
+export function verifyLandingPage(
+  pageText: string,
+  url?: string,
+  opts?: { modo?: "sales_page" | "quiz" }
+): LandingPageVerdict {
+  const modo = opts?.modo ?? "sales_page";
   const text = pageText.toLowerCase();
 
   if (pareceOutroIdioma(pageText)) {
@@ -485,12 +527,20 @@ export function verifyLandingPage(pageText: string, url?: string): LandingPageVe
     return { ok: false, reason: "oferta_gratuita" };
   }
 
-  if (LEAD_FORM_PAGE_SIGNALS.some((t) => text.includes(t))) {
-    return { ok: false, reason: "formulario_de_lead" };
-  }
+  const temSinalQuiz = QUIZ_FUNNEL_SIGNALS.some((t) => text.includes(t));
 
-  if (QUIZ_FUNNEL_SIGNALS.some((t) => text.includes(t))) {
-    return { ok: false, reason: "quiz_de_captacao" };
+  if (modo === "quiz") {
+    if (!temSinalQuiz) {
+      return { ok: false, reason: "sem_quiz" };
+    }
+  } else {
+    if (LEAD_FORM_PAGE_SIGNALS.some((t) => text.includes(t))) {
+      return { ok: false, reason: "formulario_de_lead" };
+    }
+
+    if (temSinalQuiz) {
+      return { ok: false, reason: "quiz_de_captacao" };
+    }
   }
 
   if (PHYSICAL_STORE_SIGNALS.some((t) => temSinalAfirmativo(text, t))) {
@@ -564,8 +614,9 @@ export function extractPriceFromPage(pageText: string): number | null {
   return null;
 }
 
-export function precoNaFaixa(preco: number): boolean {
-  return preco >= 9 && preco <= 50;
+// tetoMax: 50 pra PV, 300 pra Quiz (ver ticketInRange).
+export function precoNaFaixa(preco: number, tetoMax = 50): boolean {
+  return preco >= 9 && preco <= tetoMax;
 }
 
 export function formatPreco(preco: number): string {

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { getAdLibraryClient, randomDelay, type AdDetails } from "./adLibraryClient";
-import { KEYWORDS, keywordsFromCursor, normalizarCursor } from "./keywords";
+import { keywordsFromCursor, keywordsParaDestino, normalizarCursor } from "./keywords";
 import {
   extractPriceFromPage,
   extractTicket,
@@ -27,8 +27,25 @@ import {
   upsertOffers,
   type UpsertOfferInput,
 } from "./apiClient";
-import type { HistoryPoint } from "@/lib/types";
+import type { Destino, HistoryPoint } from "@/lib/types";
 import { notifyWhatsApp } from "./whatsapp";
+
+// Pedido do Cayan em 09/09/2026: escolher, por um botão no painel, se a
+// mineração de oferta NOVA busca PV ou Quiz na próxima rodada (POST
+// /api/mining-target grava; o robô só lê, em fetchStatus, no início de
+// main()). O catálogo já existente não é afetado por essa escolha:
+// revalidateExisting revalida cada oferta com a regra do PRÓPRIO destino
+// dela (offer.destino), então PV e Quiz já catalogados continuam sendo
+// revalidados os dois, independente de qual está selecionado pra minerar.
+// Quiz pode ter ticket bem mais alto que o low-ticket de PV (R$9-50) — pedido
+// explícito do Cayan, sem isso um funil de quiz que vende curso/mentoria mais
+// cara seria descartado por preço mesmo sendo uma boa oferta.
+const QUIZ_PRECO_MAX = 300;
+const SALES_PAGE_PRECO_MAX = 50;
+
+function precoMaxParaDestino(destino: Destino): number {
+  return destino === "quiz" ? QUIZ_PRECO_MAX : SALES_PAGE_PRECO_MAX;
+}
 
 function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[number]): UpsertOfferInput {
   return {
@@ -37,6 +54,7 @@ function toUpsertInput(offer: Awaited<ReturnType<typeof fetchCurrentOffers>>[num
     produto: offer.produto,
     anunciante: offer.anunciante,
     ticket: offer.ticket,
+    destino: offer.destino,
     vendaUrl: offer.vendaUrl,
     libraryId: offer.libraryId,
     pageId: offer.pageId,
@@ -332,7 +350,7 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
       await randomDelay(600, 1200);
 
       if (landing) {
-        const verdict = verifyLandingPage(landing.text, details.link);
+        const verdict = verifyLandingPage(landing.text, details.link, { modo: offer.destino });
         if (!verdict.ok) {
           registrarProblema(offer, `página de venda degradou (${verdict.reason})`);
           continue;
@@ -340,7 +358,7 @@ async function revalidateExisting(client: ReturnType<typeof getAdLibraryClient>)
 
         const precoAtual = extractPriceFromPage(landing.text);
         if (precoAtual != null) {
-          if (!precoNaFaixa(precoAtual)) {
+          if (!precoNaFaixa(precoAtual, precoMaxParaDestino(offer.destino))) {
             registrarProblema(offer, `preço saiu da faixa (agora R$ ${precoAtual})`);
             continue;
           }
@@ -420,9 +438,11 @@ async function mineNewOffers(
   trackedProductKeys: Set<string>,
   report: RoundReport,
   funnel: FunnelStats,
-  cursorInicial: number
+  cursorInicial: number,
+  listaKeywords: string[],
+  miningTarget: Destino
 ) {
-  const keywords = keywordsFromCursor(cursorInicial).slice(0, KEYWORDS_PER_ROUND);
+  const keywords = keywordsFromCursor(cursorInicial, listaKeywords).slice(0, KEYWORDS_PER_ROUND);
   // Quantas keywords a rodada realmente consumiu — vira o cursor da próxima.
   let consumidas = 0;
   const nicheCompetitionCache = new Map<string, number | null>();
@@ -509,13 +529,13 @@ async function mineNewOffers(
       }
 
       const combinedText = `${candidate.adText} ${details.adText}`;
-      if (hasNonDigitalSignal(combinedText)) {
+      if (hasNonDigitalSignal(combinedText, { modo: miningTarget })) {
         funnel.naoDigital++;
         continue; // sinal forte de produto físico/serviço/oferta financeira.
       }
 
       const ticket = extractTicket(combinedText);
-      if (!ticketInRange(ticket)) {
+      if (!ticketInRange(ticket, precoMaxParaDestino(miningTarget))) {
         funnel.ticketFora++;
         continue;
       }
@@ -566,23 +586,28 @@ async function mineNewOffers(
 
       let precoDaPagina: number | null = null;
       if (landing) {
-        const verdict = verifyLandingPage(landing.text, details.link);
+        const verdict = verifyLandingPage(landing.text, details.link, { modo: miningTarget });
         if (!verdict.ok) {
           funnel.landingRuim++;
           continue;
         }
 
         // O anúncio quase nunca declara preço; a página de venda sempre
-        // mostra. Com o preço real dá pra aplicar a faixa de R$9–50 de
-        // verdade (antes ela só valia quando o anúncio citava o valor).
+        // mostra. Com o preço real dá pra aplicar a faixa de verdade (antes
+        // ela só valia quando o anúncio citava o valor).
         precoDaPagina = extractPriceFromPage(landing.text);
-        if (precoDaPagina != null && !precoNaFaixa(precoDaPagina)) {
+        if (precoDaPagina != null && !precoNaFaixa(precoDaPagina, precoMaxParaDestino(miningTarget))) {
           funnel.ticketFora++;
           continue;
         }
 
         const nomeReal = produtoFromTitle(landing.title);
         if (nomeReal) produto = nomeReal;
+      } else if (miningTarget === "quiz") {
+        // Modo quiz exige a página carregada pra confirmar o funil (ver
+        // verifyLandingPage acima) — sem landing não tem como confirmar nada.
+        funnel.landingRuim++;
+        continue;
       }
 
       // Confirmação de que é infoproduto digital, e ela precisa vir DA PÁGINA
@@ -594,13 +619,18 @@ async function mineNewOffers(
       //
       // Basta uma das duas evidências, mas as duas saem da página: um sinal
       // de material digital no texto dela, OU um preço real já confirmado na
-      // faixa R$9–50. Se a página não carregou, não dá pra confirmar nada e a
+      // faixa. Se a página não carregou, não dá pra confirmar nada e a
       // oferta não entra (diferente da revalidação, que é tolerante: pra
       // ENTRAR exige-se prova, pra SAIR exige-se confirmação repetida).
-      const temSinalNaPagina = landing ? hasDigitalProductSignal(landing.text) : false;
-      if (!temSinalNaPagina && precoDaPagina == null) {
-        funnel.semSinalDigital++;
-        continue;
+      // Em modo quiz esse check não se aplica: a prova de entrada já é o
+      // funil de quiz confirmado acima (verifyLandingPage), não sinal de
+      // "material digital" — página de quiz raramente fala em PDF/apostila.
+      if (miningTarget !== "quiz") {
+        const temSinalNaPagina = landing ? hasDigitalProductSignal(landing.text) : false;
+        if (!temSinalNaPagina && precoDaPagina == null) {
+          funnel.semSinalDigital++;
+          continue;
+        }
       }
 
       const ticketFinal = precoDaPagina != null ? formatPreco(precoDaPagina) : ticket;
@@ -615,6 +645,7 @@ async function mineNewOffers(
         produto,
         anunciante: details.pageName,
         ticket: ticketFinal,
+        destino: miningTarget,
         vendaUrl: details.link,
         libraryId: candidate.libraryId,
         pageId: details.pageId,
@@ -648,11 +679,11 @@ async function mineNewOffers(
 
   console.log(
     `Keywords varridas nesta rodada: ${consumidas} (de ${keywords[0]} em diante). Próxima rodada começa em "${
-      KEYWORDS[normalizarCursor(cursorInicial + consumidas)]
+      listaKeywords[normalizarCursor(cursorInicial + consumidas, listaKeywords)]
     }".`
   );
 
-  return { newOffers, cursorFinal: normalizarCursor(cursorInicial + consumidas) };
+  return { newOffers, cursorFinal: normalizarCursor(cursorInicial + consumidas, listaKeywords) };
 }
 
 function printReport(report: RoundReport, offersTracked: number) {
@@ -720,10 +751,18 @@ async function main() {
 
   const funnel = novoFunnel();
 
-  // Onde a rodada anterior parou de varrer a lista de keywords. Se o status
-  // ainda não existir (primeira rodada) ou a leitura falhar, começa do zero.
-  const cursorInicial = normalizarCursor((await fetchStatus())?.keywordCursor ?? 0);
-  console.log(`Cursor de keywords: começando em ${cursorInicial} ("${KEYWORDS[cursorInicial]}").`);
+  // O que minerar de NOVO nesta rodada — escolhido pelo botão no painel
+  // (POST /api/mining-target), não por esta rodada. Cada destino tem sua
+  // própria lista de keywords e seu próprio cursor de rotação, pra trocar de
+  // um lado pro outro não perder o lugar em nenhuma das duas.
+  const statusInicial = await fetchStatus();
+  const miningTarget: Destino = statusInicial?.miningTarget === "sales_page" ? "sales_page" : "quiz";
+  const listaKeywords = keywordsParaDestino(miningTarget);
+  const cursorSalvo = miningTarget === "quiz" ? statusInicial?.keywordCursorQuiz : statusInicial?.keywordCursor;
+  const cursorInicial = normalizarCursor(cursorSalvo ?? 0, listaKeywords);
+  console.log(
+    `Alvo da rodada: ${miningTarget}. Cursor de keywords: começando em ${cursorInicial} ("${listaKeywords[cursorInicial]}").`
+  );
 
   try {
     const { trackedLibraryIds, trackedProductKeys, toDelete, toUpsert, report } = await revalidateExisting(client);
@@ -738,7 +777,9 @@ async function main() {
       trackedProductKeys,
       report,
       funnel,
-      cursorInicial
+      cursorInicial,
+      listaKeywords,
+      miningTarget
     );
     if (newOffers.length > 0) {
       await upsertOffers(newOffers);
@@ -771,7 +812,9 @@ async function main() {
       podadasHoje: toDelete.length,
       escalations: report.escalations.map((e) => e.id),
       diagnostico, // só pra debug via GET /api/status, não aparece no painel.
-      keywordCursor: cursorFinal, // próxima rodada continua daqui.
+      // Só grava o cursor do destino que rodou nesta rodada — o do outro
+      // destino fica intocado, guardando o lugar dele até ser a vez de novo.
+      ...(miningTarget === "quiz" ? { keywordCursorQuiz: cursorFinal } : { keywordCursor: cursorFinal }),
     });
 
     printReport(report, offersTracked);

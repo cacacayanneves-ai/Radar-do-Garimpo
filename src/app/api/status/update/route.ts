@@ -14,6 +14,7 @@ interface StatusPayload {
   escalations?: string[];
   diagnostico?: string;
   keywordCursor?: number;
+  keywordCursorQuiz?: number;
 }
 
 // Uso interno do job de mineração — grava o resumo da rodada.
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     // Só grava se veio no payload — assim uma chamada que não mexe na rotação
     // (ex.: script avulso de correção) não zera o cursor da mineração.
     ...(typeof body.keywordCursor === "number" ? { keywordCursor: body.keywordCursor } : {}),
+    ...(typeof body.keywordCursorQuiz === "number" ? { keywordCursorQuiz: body.keywordCursorQuiz } : {}),
   };
 
   const status = await prisma.metaStatus.upsert({

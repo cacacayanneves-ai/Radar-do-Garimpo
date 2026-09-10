@@ -1,5 +1,14 @@
-import type { FilterKey } from "@/lib/types";
+import type { Destino, FilterKey } from "@/lib/types";
 import { CATEGORIA_LABEL, type Categoria } from "@/lib/keywordCategorias";
+
+// PV = página de venda direta (catálogo original, congelado a partir de
+// 09/09/2026 — não recebe oferta nova). Quiz = funil de quiz (o que a
+// mineração busca agora). Independente do nicho e da aba — os três se
+// combinam, igual nicho já combinava com a aba.
+const DESTINOS: { key: Destino; label: string; title?: string }[] = [
+  { key: "sales_page", label: "PV" },
+  { key: "quiz", label: "Quiz", title: "Ofertas com funil de quiz — o que a mineração busca agora" },
+];
 
 const TABS: { key: FilterKey; label: string; title?: string }[] = [
   { key: "todas", label: "Todas" },
@@ -31,6 +40,9 @@ export default function FilterTabs({
   categoria,
   onCategoriaChange,
   categoriaCounts,
+  destino,
+  onDestinoChange,
+  destinoCounts,
   favoritasCount,
   descartadasCount,
 }: {
@@ -39,11 +51,29 @@ export default function FilterTabs({
   categoria: Categoria | "todas";
   onCategoriaChange: (categoria: Categoria | "todas") => void;
   categoriaCounts: Record<Categoria, number>;
+  destino: Destino;
+  onDestinoChange: (destino: Destino) => void;
+  destinoCounts: Record<Destino, number>;
   favoritasCount: number;
   descartadasCount: number;
 }) {
   return (
     <>
+      <div className="nicho-row">
+        <div className="pill-group">
+          {DESTINOS.map((d) => (
+            <button
+              key={d.key}
+              className={destino === d.key ? "active" : ""}
+              onClick={() => onDestinoChange(d.key)}
+              title={d.title}
+            >
+              {d.label} ({destinoCounts[d.key]})
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="nicho-row">
         <div className="pill-group">
           {CATEGORIAS.map((c) => {

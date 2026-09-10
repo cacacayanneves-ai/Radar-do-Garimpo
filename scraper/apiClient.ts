@@ -1,4 +1,4 @@
-import type { HistoryPoint, Internacional, Offer } from "@/lib/types";
+import type { Destino, HistoryPoint, Internacional, Offer } from "@/lib/types";
 
 const SITE_URL = process.env.SITE_URL || "http://localhost:3000";
 const SECRET = process.env.SCRAPER_API_SECRET;
@@ -20,6 +20,7 @@ export interface UpsertOfferInput {
   produto: string;
   anunciante: string;
   ticket?: string | null;
+  destino: Destino;
   vendaUrl: string;
   libraryId: string;
   pageId: string;
@@ -37,11 +38,10 @@ export interface UpsertOfferInput {
 }
 
 export async function upsertOffers(offers: UpsertOfferInput[]) {
-  const payload = offers.map((o) => ({ ...o, destino: "sales_page" as const }));
   const res = await fetch(`${SITE_URL}/api/offers/upsert`, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify({ offers: payload }),
+    body: JSON.stringify({ offers }),
   });
   if (!res.ok) {
     throw new Error(`Falha ao gravar ofertas (${res.status}): ${await res.text()}`);
@@ -70,6 +70,7 @@ export async function updateStatus(status: {
   escalations: string[];
   diagnostico?: string;
   keywordCursor?: number;
+  keywordCursorQuiz?: number;
 }) {
   const res = await fetch(`${SITE_URL}/api/status/update`, {
     method: "POST",
@@ -85,7 +86,11 @@ export async function updateStatus(status: {
 // Estado da última rodada. Hoje serve só pra ler o keywordCursor (onde a
 // rodada anterior parou de varrer a lista). Falha aqui não pode derrubar a
 // mineração: sem status, a rodada só recomeça do início da lista.
-export async function fetchStatus(): Promise<{ keywordCursor?: number } | null> {
+export async function fetchStatus(): Promise<{
+  keywordCursor?: number;
+  keywordCursorQuiz?: number;
+  miningTarget?: string;
+} | null> {
   try {
     const res = await fetch(`${SITE_URL}/api/status`, { cache: "no-store" });
     if (!res.ok) return null;

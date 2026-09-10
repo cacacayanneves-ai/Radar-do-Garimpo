@@ -18,7 +18,9 @@ model Offer {
   anunciante String
   ticket     String?
 
-  // Sempre "sales_page" — nunca "whatsapp" (regra de negócio, ver README).
+  // "sales_page" ou "quiz" — nunca "whatsapp" (regra de negócio, ver README).
+  // A partir de 09/09/2026 a mineração de oferta NOVA só aceita "quiz"; "sales_page"
+  // fica congelada com o catálogo já existente (só revalidação, sem entrada nova).
   destino String @default("sales_page")
 
   vendaUrl  String
@@ -109,7 +111,20 @@ model MetaStatus {
   // dia varrerem exatamente as mesmas keywords (a segunda só reencontrava o
   // que a primeira já tinha pego) e dois dias seguidos repetirem quase tudo.
   // Com o cursor, cada rodada continua de onde a anterior parou.
+  // A partir de 09/09/2026 este cursor é só da lista de PV — Quiz tem o seu
+  // próprio (keywordCursorQuiz), porque as duas listas de keywords são
+  // diferentes e o Cayan pode trocar de alvo a qualquer momento (ver
+  // miningTarget) sem perder o lugar em nenhuma das duas.
   keywordCursor Int @default(0)
+
+  // "sales_page" ou "quiz" — o que a mineração de oferta NOVA busca na
+  // PRÓXIMA rodada. Trocado pelo botão no painel (POST /api/mining-target),
+  // não pelo robô — o robô só lê pra saber o que fazer. Revalidação do
+  // catálogo já existente roda igual pros dois tipos, independente disso.
+  miningTarget String @default("quiz")
+
+  // Cursor de rotação da lista de keywords de QUIZ — ver keywordCursor acima.
+  keywordCursorQuiz Int @default(0)
 
   updatedAt DateTime @updatedAt
 

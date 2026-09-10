@@ -32,20 +32,36 @@
 // painel. Editar keyword (adicionar/remover/encurtar) é lá, não aqui. A
 // ORDEM dentro de cada grupo é a ordem de rotação do cursor — não reordene
 // à toa.
-import { KEYWORD_GROUPS } from "@/lib/keywordCategorias";
+import { KEYWORD_GROUPS, QUIZ_KEYWORD_GROUPS } from "@/lib/keywordCategorias";
+import type { Destino } from "@/lib/types";
 
+// Lista de PV (nome antigo mantido — é a lista original, medida antes do
+// pivot de 09/09/2026).
 export const KEYWORDS: string[] = [
   ...KEYWORD_GROUPS.saude,
   ...KEYWORD_GROUPS.religiao,
   ...KEYWORD_GROUPS.renda_extra,
 ];
 
+// Lista de Quiz — keywords focadas em funil de quiz, rotação própria e
+// separada da de PV (ver QUIZ_KEYWORD_GROUPS em keywordCategorias.ts).
+export const KEYWORDS_QUIZ: string[] = [
+  ...QUIZ_KEYWORD_GROUPS.saude,
+  ...QUIZ_KEYWORD_GROUPS.religiao,
+  ...QUIZ_KEYWORD_GROUPS.renda_extra,
+];
+
+export function keywordsParaDestino(destino: Destino): string[] {
+  return destino === "quiz" ? KEYWORDS_QUIZ : KEYWORDS;
+}
+
 // Normaliza um cursor vindo do banco (pode estar fora da faixa se a lista
-// encolher) para um índice válido da lista.
-export function normalizarCursor(cursor: number): number {
-  if (!Number.isFinite(cursor)) return 0;
-  const n = Math.trunc(cursor) % KEYWORDS.length;
-  return n < 0 ? n + KEYWORDS.length : n;
+// encolher) para um índice válido da `lista` dada — cada destino (PV/Quiz)
+// tem sua própria lista e seu próprio cursor guardado no banco.
+export function normalizarCursor(cursor: number, lista: string[]): number {
+  if (!Number.isFinite(cursor) || lista.length === 0) return 0;
+  const n = Math.trunc(cursor) % lista.length;
+  return n < 0 ? n + lista.length : n;
 }
 
 // Lista inteira reordenada pra começar em `cursor`, em rotação circular. A
@@ -55,7 +71,7 @@ export function normalizarCursor(cursor: number): number {
 // toda é coberta. (Antes o ponto de partida era o dia do ano: as duas rodadas
 // do mesmo dia usavam as MESMAS keywords e dois dias seguidos repetiam quase
 // todas — daí o volume de duplicadas e o catálogo parado.)
-export function keywordsFromCursor(cursor: number): string[] {
-  const start = normalizarCursor(cursor);
-  return KEYWORDS.map((_, i) => KEYWORDS[(start + i) % KEYWORDS.length]);
+export function keywordsFromCursor(cursor: number, lista: string[]): string[] {
+  const start = normalizarCursor(cursor, lista);
+  return lista.map((_, i) => lista[(start + i) % lista.length]);
 }

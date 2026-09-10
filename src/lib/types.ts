@@ -1,4 +1,8 @@
-export type Destino = "sales_page";
+// Pedido do Cayan em 09/09/2026: parar de minerar oferta nova tipo PV e
+// minerar só tipo Quiz por enquanto — o catálogo PV existente fica
+// congelado (só revalidado, sem oferta nova), e o painel ganha uma aba pra
+// escolher qual tipo ver.
+export type Destino = "sales_page" | "quiz";
 
 export type Internacional = "Alta" | "Media" | "Baixa";
 
@@ -44,10 +48,15 @@ export interface MetaStatus {
   // Diagnóstico técnico do funil da rodada — não é pra exibir no painel,
   // só pra debug via GET /api/status.
   diagnostico: string;
-  // Onde a próxima rodada começa a varrer a lista de keywords. O minerador lê
-  // este campo daqui, então ele PRECISA sair no JSON — sem ele a rodada
-  // recomeça sempre do início da lista.
+  // Onde a próxima rodada começa a varrer a lista de keywords de PV. O
+  // minerador lê este campo daqui, então ele PRECISA sair no JSON — sem ele
+  // a rodada recomeça sempre do início da lista.
   keywordCursor: number;
+  // O que a mineração de oferta NOVA busca na próxima rodada — trocado pelo
+  // botão no painel (POST /api/mining-target).
+  miningTarget: Destino;
+  // Cursor de rotação da lista de keywords de QUIZ, separado do de PV.
+  keywordCursorQuiz: number;
 }
 
 export type FilterKey =
