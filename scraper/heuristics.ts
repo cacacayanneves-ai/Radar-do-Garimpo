@@ -361,6 +361,27 @@ const QUIZ_FUNNEL_SIGNALS = [
   "faca o quiz",
 ];
 
+// Complemento à lista acima — medido em 10/09/2026 buscando de verdade pelas
+// keywords novas de quiz (scraper/keywords.ts): a lista de frases fixas só
+// pegava 0 de 9 quizzes reais encontrados. Página de quiz de verdade varia
+// muito o texto ("Etapa 1 de 16", "PERGUNTA 1", "Responda 8 perguntas
+// rápidas", "Teste rápido de menos de 3 minutos", "O funil leva em média 1
+// minuto"...), então em vez de só frase exata, usa padrões da ESTRUTURA
+// comum de quiz/funil (numeração de etapa/pergunta, tempo estimado).
+const QUIZ_STRUCTURE_PATTERNS: RegExp[] = [
+  /\b(etapa|passo)\s*\d+\s*(de\s*\d+)?/i, // "Etapa 1 de 16", "Passo 2"
+  /\bpergunta\s*\d+/i, // "PERGUNTA 1"
+  /\bresponda\s+(\w+\s+){0,2}(perguntas?|teste|quiz)\b/i, // "Responda 8 perguntas", "Responda algumas perguntas", "Responda esse teste"
+  /\b(teste|quiz|funil|diagnóstico|avaliação)\b[^.]{0,60}\bminutos?\b/i, // "...leva em média 1 minuto", "teste rápido de menos de 3 minutos"
+  /\bfaça\s+o\s+(teste|quiz)\b/i,
+];
+
+export function hasQuizFunnelSignal(pageText: string): boolean {
+  const text = pageText.toLowerCase();
+  if (QUIZ_FUNNEL_SIGNALS.some((t) => text.includes(t))) return true;
+  return QUIZ_STRUCTURE_PATTERNS.some((re) => re.test(pageText));
+}
+
 // Loja de produto FÍSICO. O sinal decisivo é frete/entrega — "carrinho" e
 // "adicionar ao carrinho" não servem, porque loja de produto digital
 // legítima (WooCommerce etc.) também tem carrinho.
@@ -527,7 +548,7 @@ export function verifyLandingPage(
     return { ok: false, reason: "oferta_gratuita" };
   }
 
-  const temSinalQuiz = QUIZ_FUNNEL_SIGNALS.some((t) => text.includes(t));
+  const temSinalQuiz = hasQuizFunnelSignal(pageText);
 
   if (modo === "quiz") {
     if (!temSinalQuiz) {
