@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Offer, SortKey, SortState } from "@/lib/types";
 import { computeDelta, diasNoAr } from "@/lib/compute";
 import Sparkline from "./Sparkline";
@@ -6,6 +6,7 @@ import DeltaBadge from "./DeltaBadge";
 import CompetitionBar from "./CompetitionBar";
 import Tags from "./Tags";
 import LinkButtons from "./LinkButtons";
+import OfferHistoryModal from "./OfferHistoryModal";
 import { IconEstrela, IconLixeira, IconRestaurar } from "./Icons";
 
 // Rótulos curtos de propósito: como os cabeçalhos não quebram linha
@@ -40,6 +41,10 @@ export default function OffersTable({
   // ▲ = crescente, ▼ = decrescente. Só aparece na coluna ativa.
   const seta = (key: SortKey) => (sort.key !== key ? "" : sort.dir === "asc" ? "▲" : "▼");
 
+  // Oferta cujo gráfico de histórico está aberto no momento (clique no nome
+  // do produto) — null quando o modal está fechado.
+  const [historyOffer, setHistoryOffer] = useState<Offer | null>(null);
+
   // Rola até a linha pedida (clique no tile "Maior escalada do dia") e pisca
   // ela. Depende de `seq`, não só do id, pra funcionar mesmo clicando duas
   // vezes seguidas na mesma oferta.
@@ -62,6 +67,7 @@ export default function OffersTable({
   }
 
   return (
+    <>
     <div className="table-wrap">
       <table>
         <thead>
@@ -99,7 +105,11 @@ export default function OffersTable({
               <tr key={o.id} id={`oferta-${o.id}`} className={`row-rise ${rowCls}`} style={style}>
                 <td data-label="Oferta">
                   <div className="niche-badge">{o.niche}</div>
-                  <div className="offer-produto" title={o.produto}>
+                  <div
+                    className="offer-produto offer-produto-clickable"
+                    title={`${o.produto} — clique pra ver o histórico de criativos`}
+                    onClick={() => setHistoryOffer(o)}
+                  >
                     {o.produto}
                   </div>
                   <div className="offer-anunciante">{o.anunciante}</div>
@@ -158,5 +168,7 @@ export default function OffersTable({
         </tbody>
       </table>
     </div>
+    {historyOffer && <OfferHistoryModal offer={historyOffer} onClose={() => setHistoryOffer(null)} />}
+    </>
   );
 }

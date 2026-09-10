@@ -790,6 +790,77 @@ tbody td {
   margin-top: 2px;
 }
 
+.offer-produto-clickable {
+  cursor: pointer;
+}
+
+.offer-produto-clickable:hover {
+  color: var(--brass-ink);
+  text-decoration: underline;
+}
+
+/* Modal do gráfico de histórico (clique no nome do produto). */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  width: 100%;
+  max-width: 620px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.modal-subtitle {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.modal-empty {
+  color: var(--ink-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 28px 0;
+}
+
+.history-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.modal-footer {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
