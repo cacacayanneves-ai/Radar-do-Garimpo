@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { HistoryPoint, Offer } from "@/lib/types";
 
 const WIDTH = 560;
@@ -20,6 +20,11 @@ function formatDia(iso: string): string {
 // mesmo dado do Sparkline da tabela (o.history), só que maior e com eixo de
 // data, pra ver de perto a subida/descida em vez de só o formato geral.
 function HistoryChart({ points }: { points: HistoryPoint[] }) {
+  // Tooltip customizado em vez do <title> nativo do navegador: aquele exige
+  // deixar o mouse parado em cima por um tempo (e não funciona em toque no
+  // celular) — pedido do Cayan foi encostar/passar por cima e já mostrar.
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
   const values = points.map((p) => p.c);
   const min = Math.min(...values, 0);
   const max = Math.max(...values);
@@ -50,41 +55,65 @@ function HistoryChart({ points }: { points: HistoryPoint[] }) {
   const maxLabels = 6;
   const labelStep = Math.max(1, Math.ceil(points.length / maxLabels));
 
+  const hover = hoverIndex != null ? coords[hoverIndex] : null;
+
   return (
-    <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      className="history-chart"
-      role="img"
-      aria-label="Gráfico de criativos rodando por dia"
-    >
-      {[0, 0.5, 1].map((f) => {
-        const y = PAD_TOP + innerH * (1 - f);
-        const valor = Math.round(min + range * f);
-        return (
-          <g key={f}>
-            <line x1={PAD_LEFT} y1={y} x2={WIDTH - PAD_RIGHT} y2={y} stroke="var(--border)" strokeWidth={1} />
-            <text x={PAD_LEFT - 8} y={y + 3} textAnchor="end" fontSize={10} fill="var(--ink-muted)">
-              {valor}
-            </text>
+    <div className="history-chart-wrap">
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="history-chart"
+        role="img"
+        aria-label="Gráfico de criativos rodando por dia"
+        onMouseLeave={() => setHoverIndex(null)}
+      >
+        {[0, 0.5, 1].map((f) => {
+          const y = PAD_TOP + innerH * (1 - f);
+          const valor = Math.round(min + range * f);
+          return (
+            <g key={f}>
+              <line x1={PAD_LEFT} y1={y} x2={WIDTH - PAD_RIGHT} y2={y} stroke="var(--border)" strokeWidth={1} />
+              <text x={PAD_LEFT - 8} y={y + 3} textAnchor="end" fontSize={10} fill="var(--ink-muted)">
+                {valor}
+              </text>
+            </g>
+          );
+        })}
+
+        <path d={areaPath} fill={corArea} stroke="none" />
+        <path d={linePath} fill="none" stroke={cor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+
+        {coords.map((c, i) => (
+          <g key={c.p.d}>
+            <circle cx={c.x} cy={c.y} r={hoverIndex === i ? 4.5 : 3} fill={cor} />
+            {(i % labelStep === 0 || i === coords.length - 1) && (
+              <text x={c.x} y={HEIGHT - 8} textAnchor="middle" fontSize={10} fill="var(--ink-muted)">
+                {formatDia(c.p.d)}
+              </text>
+            )}
+            {/* Alvo invisível bem maior que o ponto — só encostar/passar já
+                mostra o tooltip, sem precisar acertar os 3px do círculo. */}
+            <circle
+              cx={c.x}
+              cy={c.y}
+              r={12}
+              fill="transparent"
+              onMouseEnter={() => setHoverIndex(i)}
+              onTouchStart={() => setHoverIndex(i)}
+              style={{ cursor: "pointer" }}
+            />
           </g>
-        );
-      })}
+        ))}
+      </svg>
 
-      <path d={areaPath} fill={corArea} stroke="none" />
-      <path d={linePath} fill="none" stroke={cor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-
-      {coords.map((c, i) => (
-        <g key={c.p.d}>
-          <circle cx={c.x} cy={c.y} r={3} fill={cor} />
-          <title>{`${formatDia(c.p.d)}: ${c.p.c} criativos`}</title>
-          {(i % labelStep === 0 || i === coords.length - 1) && (
-            <text x={c.x} y={HEIGHT - 8} textAnchor="middle" fontSize={10} fill="var(--ink-muted)">
-              {formatDia(c.p.d)}
-            </text>
-          )}
-        </g>
-      ))}
-    </svg>
+      {hover && (
+        <div
+          className="history-tooltip"
+          style={{ left: `${(hover.x / WIDTH) * 100}%`, top: `${(hover.y / HEIGHT) * 100}%` }}
+        >
+          <strong>{formatDia(hover.p.d)}</strong>: {hover.p.c} criativos
+        </div>
+      )}
+    </div>
   );
 }
 

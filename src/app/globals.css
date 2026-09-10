@@ -848,10 +848,34 @@ tbody td {
   padding: 28px 0;
 }
 
+.history-chart-wrap {
+  position: relative;
+  width: 100%;
+}
+
 .history-chart {
   width: 100%;
   height: auto;
   display: block;
+}
+
+/* Tooltip customizado do ponto do gráfico — aparece na hora ao encostar/
+   passar o mouse, sem o atraso do title nativo do navegador. Posicionado
+   por porcentagem (left/top) relativa ao wrap, que tem o mesmo formato do
+   viewBox do SVG. */
+.history-tooltip {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .modal-footer {
